@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with activities, permissions and saved posts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "password": { "type": "string" },
+        "avatar": { "type": "string" },
+        "bio": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "reader"] },
+        "createdAt": { "type": "string" },
+        "savedPostIds": { "type": "array" },
+        "likedPostIds": { "type": "array" },
+        "readHistoryIds": { "type": "array" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Blog publication with markdown content and media references",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "category": { "type": "string" },
+        "readTime": { "type": "string" },
+        "date": { "type": "string" },
+        "views": { "type": "string" },
+        "viewCount": { "type": "number" },
+        "likes": { "type": "number" },
+        "isFeatured": { "type": "boolean" },
+        "mediaType": { "type": "string", "enum": ["image", "video", "audio"] },
+        "videoUrl": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "driveFileId": { "type": "string" },
+        "driveFileName": { "type": "string" }
+      },
+      "required": ["id", "title", "content", "category"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "User comment associated with a blog post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "postId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorEmail": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "likes": { "type": "number" }
+      },
+      "required": ["id", "postId", "authorName", "content"]
+    },
+    "Photo": {
+      "title": "Photo",
+      "description": "Integrated photo gallery entry with EXIF technical data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "caption": { "type": "string" },
+        "category": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "date": { "type": "string" },
+        "location": { "type": "string" },
+        "likes": { "type": "number" }
+      },
+      "required": ["id", "title", "category", "imageUrl"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Post category with post count and icon",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "count": { "type": "number" },
+        "iconName": { "type": "string" },
+        "slug": { "type": "string" }
+      },
+      "required": ["id", "name", "slug"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Collection of all application user profiles"
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "Collection of blog publications"
+    },
+    "/comments/{postId}/items/{commentId}": {
+      "schema": { "$ref": "#/entities/Comment" },
+      "description": "Comments for each article"
+    },
+    "/photos/{photoId}": {
+      "schema": { "$ref": "#/entities/Photo" },
+      "description": "Photo gallery items"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Categories for navigation and filtering"
+    }
+  }
+}

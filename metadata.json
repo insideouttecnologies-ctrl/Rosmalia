@@ -1,0 +1,6 @@
+{
+  "name": "Lume - Blog & Galeria Pessoal",
+  "description": "Blog pessoal e galeria integrada de fotos com publicações, comentários interativos, busca por categorias e área de administração.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

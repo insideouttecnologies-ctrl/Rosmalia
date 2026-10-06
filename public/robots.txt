@@ -1,0 +1,8 @@
+# robots.txt for Lume - Blog & Galeria Pessoal
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+# Sitemap location
+Sitemap: /sitemap.xml
