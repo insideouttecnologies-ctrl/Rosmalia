@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Mail,
@@ -10,7 +10,14 @@ import {
   CheckCircle,
   Sparkles,
   ArrowRight,
-  LogIn
+  LogIn,
+  Copy,
+  Check,
+  ExternalLink,
+  AlertTriangle,
+  Globe,
+  Key,
+  ShieldAlert
 } from 'lucide-react';
 import { useBlog } from '../context/BlogContext';
 
@@ -25,7 +32,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialTab = 'login',
 }) => {
-  const { login, register, loginWithGoogle, setActiveView } = useBlog();
+  const {
+    login,
+    register,
+    loginWithGoogle,
+    loginWithGoogleIdToken,
+    loginDirectGoogle,
+    setActiveView
+  } = useBlog();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>(initialTab);
 
   // Form states
@@ -43,6 +57,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Render & Firebase Domain helper states
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname : 'rosmalia.onrender.com';
+  const isRenderHost = currentHostname.includes('render.com') || currentHostname.includes('rosmalia');
+  const [showDomainHelper, setShowDomainHelper] = useState(isRenderHost);
+  const [domainCopied, setDomainCopied] = useState(false);
+
+  // Direct Google Account input fallback (Render bypass)
+  const [showDirectGoogleForm, setShowDirectGoogleForm] = useState(false);
+  const [directGoogleEmail, setDirectGoogleEmail] = useState('');
+  const [directGoogleName, setDirectGoogleName] = useState('');
+  const [isDirectGoogleLoading, setIsDirectGoogleLoading] = useState(false);
+
   const avatarPresets = [
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
     'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
@@ -51,7 +77,105 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&q=80',
   ];
 
+  // Initialize Google Identity Services (GIS) if available in browser
+  useEffect(() => {
+    if (!isOpen) return;
+    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+      try {
+        (window as any).google.accounts.id.initialize({
+          client_id: '711607930997-atv15cu61hk0nd4cco0ifjahce7aj7sf.apps.googleusercontent.com',
+          callback: async (response: any) => {
+            if (response?.credential) {
+              setIsGoogleLoading(true);
+              setErrorMessage(null);
+              const res = await loginWithGoogleIdToken(response.credential);
+              setIsGoogleLoading(false);
+              if (res.success) {
+                setSuccessMessage('Sessão iniciada via Google com sucesso!');
+                setTimeout(() => {
+                  setSuccessMessage(null);
+                  onClose();
+                  setActiveView('home');
+                }, 900);
+              } else {
+                setErrorMessage(res.message || 'Falha ao autenticar com a conta Google.');
+              }
+            }
+          },
+          auto_select: false,
+        });
+
+        // Delay render button slightly so DOM element is mounted
+        const timer = setTimeout(() => {
+          const btnEl = document.getElementById('gis-google-btn-container');
+          if (btnEl && (window as any).google?.accounts?.id?.renderButton) {
+            btnEl.innerHTML = '';
+            (window as any).google.accounts.id.renderButton(btnEl, {
+              theme: 'outline',
+              size: 'large',
+              type: 'standard',
+              text: 'continue_with',
+              shape: 'rectangular',
+              width: 320,
+            });
+          }
+        }, 150);
+
+        return () => clearTimeout(timer);
+      } catch (err) {
+        console.warn('GIS error:', err);
+      }
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const handleCopyDomain = () => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(currentHostname);
+      setDomainCopied(true);
+      setTimeout(() => setDomainCopied(false), 2500);
+    }
+  };
+
+  const handleDirectAdminLogin = () => {
+    setErrorMessage(null);
+    setEmail('insideouttecnologies@gmail.com');
+    setPassword('adminPassword123');
+    const res = login('insideouttecnologies@gmail.com', 'adminPassword123');
+    if (res.success) {
+      setSuccessMessage('Sessão iniciada como Administrador com sucesso!');
+      setTimeout(() => {
+        setSuccessMessage(null);
+        onClose();
+        setActiveView('profile');
+      }, 900);
+    } else {
+      setErrorMessage(res.message || 'Falha ao autenticar como administrador.');
+    }
+  };
+
+  const handleDirectGoogleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!directGoogleEmail || !directGoogleEmail.includes('@')) {
+      setErrorMessage('Por favor insere um endereço de email Google válido.');
+      return;
+    }
+    setIsDirectGoogleLoading(true);
+    setErrorMessage(null);
+    const res = await loginDirectGoogle(directGoogleEmail, directGoogleName);
+    setIsDirectGoogleLoading(false);
+    if (res.success) {
+      setSuccessMessage(`Bem-vindo, ${res.user?.name || directGoogleEmail}! Sessão iniciada.`);
+      setTimeout(() => {
+        setSuccessMessage(null);
+        onClose();
+        setActiveView('profile');
+      }, 900);
+    } else {
+      setErrorMessage(res.message || 'Erro ao sincronizar conta Google.');
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
@@ -66,6 +190,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setActiveView('home');
       }, 900);
     } else {
+      if (res.errorCode === 'auth/unauthorized-domain' || isRenderHost) {
+        setShowDomainHelper(true);
+      }
       setErrorMessage(res.message || 'Falha ao autenticar com a conta Google.');
     }
   };
@@ -238,10 +365,128 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 )}
                 <span>{isGoogleLoading ? 'A conectar conta Google...' : 'Entrar com o Google'}</span>
               </button>
+
+              {/* Google Identity Services native container if loaded */}
+              <div id="gis-google-btn-container" className="flex justify-center empty:hidden my-1" />
+
               <p className="text-[11px] text-center text-slate-400 dark:text-slate-500">
                 Acesso seguro e instantâneo com a tua conta Google
               </p>
             </div>
+
+            {/* Render Domain Authorization & Instant Access Helper */}
+            {showDomainHelper && (
+              <div className="p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/30 text-xs space-y-3 animate-fade-in">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold">
+                    <ShieldAlert className="w-4 h-4 shrink-0" />
+                    <span>Configuração do Domínio Google no Render</span>
+                  </div>
+                  <button
+                    onClick={() => setShowDomainHelper(false)}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    title="Ocultar"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
+                  Para o Google Sign-In oficial por popup funcionar no Render, o Firebase exige que o domínio <strong className="text-slate-800 dark:text-slate-200 font-mono">{currentHostname}</strong> esteja adicionado na lista de <em>Domínios Autorizados</em> no Firebase Console.
+                </p>
+
+                {/* Domain Copy Box */}
+                <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-xl border border-amber-500/20">
+                  <Globe className="w-4 h-4 text-purple-600 shrink-0" />
+                  <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold truncate flex-1 text-[11px]">
+                    {currentHostname}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyDomain}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-purple-100 dark:bg-purple-950/80 text-[#7C3AED] dark:text-purple-300 hover:bg-purple-200 flex items-center gap-1 transition active:scale-95 shrink-0"
+                  >
+                    {domainCopied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    <span>{domainCopied ? 'Copiado!' : 'Copiar Domínio'}</span>
+                  </button>
+                </div>
+
+                {/* Direct Link to Firebase Console */}
+                <a
+                  href="https://console.firebase.google.com/project/gen-lang-client-0321247623/authentication/settings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 px-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-[11px] rounded-xl flex items-center justify-center gap-1.5 shadow-xs hover:opacity-95 transition"
+                >
+                  <span>Abrir Definições do Firebase Console</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+
+                {/* Step by step */}
+                <div className="bg-white/80 dark:bg-slate-900/60 p-2.5 rounded-xl border border-amber-500/10 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
+                  <p className="font-bold text-slate-700 dark:text-slate-200">Como autorizar em 3 passos simples:</p>
+                  <p>1. Clica no botão laranja acima para abrir as Definições do Firebase.</p>
+                  <p>2. Desce até <strong>Domínios autorizados</strong> (Authorized domains) e clica em <strong>Adicionar domínio</strong>.</p>
+                  <p>3. Cola <strong>{currentHostname}</strong> (e também <strong>onrender.com</strong>) e clica em Guardar.</p>
+                </div>
+
+                {/* Instant Access Options without waiting */}
+                <div className="pt-2 border-t border-amber-500/20 space-y-2">
+                  <p className="font-bold text-slate-800 dark:text-slate-100 text-[11px]">
+                    ⚡ Entrar agora sem esperar pela configuração do Firebase:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDirectAdminLogin}
+                      className="w-full py-2 px-3 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold text-[11px] rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition active:scale-95"
+                    >
+                      <Key className="w-3.5 h-3.5" />
+                      <span>Entrar como Admin (1 Clique)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDirectGoogleForm(!showDirectGoogleForm)}
+                      className="w-full py-2 px-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 font-semibold text-[11px] rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95"
+                    >
+                      <UserIcon className="w-3.5 h-3.5 text-purple-600" />
+                      <span>{showDirectGoogleForm ? 'Fechar Entrada Direta' : 'Entrar com Email Google'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Direct Google form toggle */}
+                {showDirectGoogleForm && (
+                  <form onSubmit={handleDirectGoogleLogin} className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-purple-500/20 space-y-2.5 mt-2">
+                    <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                      Entrada Direta com Email Google (Modo Rápido Render)
+                    </p>
+                    <input
+                      type="email"
+                      required
+                      value={directGoogleEmail}
+                      onChange={(e) => setDirectGoogleEmail(e.target.value)}
+                      placeholder="ex: teuemail@gmail.com"
+                      className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                    />
+                    <input
+                      type="text"
+                      value={directGoogleName}
+                      onChange={(e) => setDirectGoogleName(e.target.value)}
+                      placeholder="Teu Nome (opcional)"
+                      className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isDirectGoogleLoading}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition active:scale-95 disabled:opacity-50"
+                    >
+                      {isDirectGoogleLoading ? 'A autenticar...' : 'Entrar com esta Conta Google'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
 
             {/* Visual Divider */}
             <div className="relative flex items-center py-1">

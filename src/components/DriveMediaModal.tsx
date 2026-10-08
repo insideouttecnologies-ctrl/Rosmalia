@@ -14,10 +14,14 @@ import {
   LogIn,
   LogOut,
   Play,
-  Check
+  Check,
+  Copy,
+  Globe,
+  ShieldAlert,
+  Link as LinkIcon
 } from 'lucide-react';
 import { useBlog } from '../context/BlogContext';
-import { DriveMediaFile } from '../services/googleDrive';
+import { DriveMediaFile, normalizeDriveImageUrl, setManualDriveAccessToken } from '../services/googleDrive';
 
 interface DriveMediaModalProps {
   isOpen: boolean;
@@ -52,6 +56,19 @@ export const DriveMediaModal: React.FC<DriveMediaModalProps> = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  // Render & Firebase Domain helper states
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname : 'rosmalia.onrender.com';
+  const isRenderHost = currentHostname.includes('render.com') || currentHostname.includes('rosmalia');
+  const [showDomainHelper, setShowDomainHelper] = useState(isRenderHost && !isDriveConnected);
+  const [domainCopied, setDomainCopied] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [driveError, setDriveError] = useState<string | null>(null);
+
+  // Direct Drive link insertion
+  const [showDirectLinkInput, setShowDirectLinkInput] = useState(false);
+  const [directLinkInput, setDirectLinkInput] = useState('');
+  const [directLinkName, setDirectLinkName] = useState('');
 
   useEffect(() => {
     if (isOpen && isDriveConnected) {
@@ -95,6 +112,54 @@ export const DriveMediaModal: React.FC<DriveMediaModalProps> = ({
       setStatusMessage('Ficheiro eliminado do Google Drive.');
       setTimeout(() => setStatusMessage(null), 3000);
     }
+  };
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    setDriveError(null);
+    const ok = await connectGoogleDrive();
+    setIsConnecting(false);
+    if (!ok) {
+      setShowDomainHelper(true);
+      setDriveError(
+        `O popup do Google foi bloqueado ou o domínio "${currentHostname}" ainda não está nos Domínios Autorizados do Firebase Console.`
+      );
+    } else {
+      setShowDomainHelper(false);
+      setStatusMessage('Google Drive conectado com sucesso!');
+      setTimeout(() => setStatusMessage(null), 3000);
+    }
+  };
+
+  const handleCopyDomain = () => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(currentHostname);
+      setDomainCopied(true);
+      setTimeout(() => setDomainCopied(false), 2500);
+    }
+  };
+
+  const handleAddDirectDriveLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directLinkInput.trim()) return;
+    const normalizedUrl = normalizeDriveImageUrl(directLinkInput.trim());
+    const newMedia: DriveMediaFile = {
+      id: `drive-direct-${Date.now()}`,
+      name: directLinkName.trim() || 'Ficheiro Google Drive',
+      mimeType: 'image/jpeg',
+      directUrl: normalizedUrl,
+      thumbnailLink: normalizedUrl,
+      size: '0 KB',
+      createdTime: new Date().toISOString(),
+    };
+    if (onSelectMedia) {
+      onSelectMedia(newMedia);
+    }
+    setStatusMessage('Link do Google Drive adicionado com sucesso!');
+    setDirectLinkInput('');
+    setDirectLinkName('');
+    setShowDirectLinkInput(false);
+    setTimeout(() => setStatusMessage(null), 3500);
   };
 
   const getMediaIcon = (mimeType: string) => {
@@ -161,7 +226,7 @@ export const DriveMediaModal: React.FC<DriveMediaModalProps> = ({
             )}
           </div>
 
-          <div>
+          <div className="flex items-center gap-2">
             {isDriveConnected ? (
               <button
                 onClick={disconnectDrive}
@@ -171,16 +236,131 @@ export const DriveMediaModal: React.FC<DriveMediaModalProps> = ({
                 <span>Desconectar</span>
               </button>
             ) : (
-              <button
-                onClick={() => connectGoogleDrive()}
-                className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl flex items-center gap-1.5 shadow-sm"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Conectar Conta Google</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDirectLinkInput(!showDirectLinkInput)}
+                  className="px-3 py-1.5 text-xs font-semibold text-[#7C3AED] dark:text-purple-300 bg-purple-100 dark:bg-purple-950/80 hover:bg-purple-200 rounded-xl flex items-center gap-1 shadow-xs transition"
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <span>Inserir Link Direto do Drive</span>
+                </button>
+                <button
+                  onClick={handleConnect}
+                  disabled={isConnecting}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl flex items-center gap-1.5 shadow-sm transition disabled:opacity-60"
+                >
+                  {isConnecting ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <LogIn className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isConnecting ? 'A conectar...' : 'Conectar Conta Google'}</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
+
+        {/* Direct Link Input Form if toggled */}
+        {showDirectLinkInput && (
+          <div className="px-6 py-3 bg-white dark:bg-slate-900 border-b border-purple-100 dark:border-purple-900/40">
+            <form onSubmit={handleAddDirectDriveLink} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                  <LinkIcon className="w-3.5 h-3.5 text-[#7C3AED]" />
+                  <span>Adicionar Ficheiro/Foto via Link de Partilha do Google Drive</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowDirectLinkInput(false)}
+                  className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  Cancelar
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  required
+                  value={directLinkInput}
+                  onChange={(e) => setDirectLinkInput(e.target.value)}
+                  placeholder="Cola o link do Drive (ex: https://drive.google.com/file/d/1X...)"
+                  className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-purple-950/60 rounded-xl text-slate-900 dark:text-white font-mono"
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={directLinkName}
+                    onChange={(e) => setDirectLinkName(e.target.value)}
+                    placeholder="Nome do ficheiro (ex: Foto de Perfil)"
+                    className="flex-1 px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-purple-950/60 rounded-xl text-slate-900 dark:text-white"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 text-xs font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-xl transition active:scale-95 shrink-0"
+                  >
+                    Usar Ficheiro
+                  </button>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                O link será automaticamente convertido para o formato direto público de alta velocidade (lh3.googleusercontent.com) acessível por todos.
+              </p>
+            </form>
+          </div>
+        )}
+
+        {/* Render Domain Assistant for Drive */}
+        {showDomainHelper && !isDriveConnected && (
+          <div className="mx-6 my-2 p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/30 text-xs space-y-2.5 animate-fade-in">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold">
+                <ShieldAlert className="w-4 h-4 shrink-0" />
+                <span>Configuração do Domínio Google Drive no Render</span>
+              </div>
+              <button
+                onClick={() => setShowDomainHelper(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                title="Ocultar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
+              No Render, o popup da Google necessita que o domínio <strong className="font-mono text-slate-800 dark:text-slate-100">{currentHostname}</strong> esteja autorizado no Firebase Console.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-900 rounded-lg border border-amber-500/20 font-mono text-[11px] flex-1 min-w-[200px]">
+                <Globe className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                <span className="truncate">{currentHostname}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyDomain}
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-purple-100 dark:bg-purple-950/80 text-[#7C3AED] dark:text-purple-300 hover:bg-purple-200 flex items-center gap-1 transition shrink-0"
+              >
+                {domainCopied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                <span>{domainCopied ? 'Copiado!' : 'Copiar Domínio'}</span>
+              </button>
+              <a
+                href="https://console.firebase.google.com/project/gen-lang-client-0321247623/authentication/settings"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 text-[11px] font-bold rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center gap-1 shadow-xs hover:opacity-95 transition shrink-0"
+              >
+                <span>Adicionar no Firebase Console</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              💡 <strong>Dica sem esperar:</strong> Podes usar o botão "Inserir Link Direto do Drive" acima para usar qualquer foto ou vídeo do teu Google Drive imediatamente!
+            </p>
+          </div>
+        )}
 
         {/* Dedicated Folder Selector */}
         <div className="flex border-b border-slate-100 dark:border-purple-950/40 px-6 pt-3 bg-slate-50/50 dark:bg-slate-900/30 gap-2 overflow-x-auto">

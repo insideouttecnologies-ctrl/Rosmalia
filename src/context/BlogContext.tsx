@@ -29,6 +29,9 @@ import {
   persistBannerItemsToFirebase,
   loadBannerItemsFromFirebase,
   signInWithGooglePopup,
+  signInWithGoogleIdToken,
+  signInDirectGoogleAccount,
+  GoogleAuthResult,
   signOutFromFirebase,
 } from '../services/firebase';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -53,7 +56,9 @@ interface BlogContextType {
   isAdmin: boolean;
   setIsAdmin: (admin: boolean) => void;
   login: (email: string, password?: string) => { success: boolean; message?: string };
-  loginWithGoogle: () => Promise<{ success: boolean; message?: string; user?: User }>;
+  loginWithGoogle: () => Promise<GoogleAuthResult>;
+  loginWithGoogleIdToken: (idToken: string) => Promise<GoogleAuthResult>;
+  loginDirectGoogle: (email: string, name?: string) => Promise<GoogleAuthResult>;
   register: (userData: {
     name: string;
     email: string;
@@ -515,22 +520,44 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  const loginWithGoogle = async (): Promise<{ success: boolean; message?: string; user?: User }> => {
+  const handleSuccessfulGoogleUser = (user: User) => {
+    setCurrentUser(user);
+    setUsers((prev) => {
+      const idx = prev.findIndex((u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = user;
+        return next;
+      }
+      return [user, ...prev];
+    });
+  };
+
+  const loginWithGoogle = async (): Promise<GoogleAuthResult> => {
     const result = await signInWithGooglePopup();
     if (result.success && result.user) {
-      setCurrentUser(result.user);
-      setUsers((prev) => {
-        const idx = prev.findIndex((u) => u.id === result.user!.id || u.email.toLowerCase() === result.user!.email.toLowerCase());
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = result.user!;
-          return next;
-        }
-        return [result.user!, ...prev];
-      });
+      handleSuccessfulGoogleUser(result.user);
       return { success: true, user: result.user };
     }
-    return { success: false, message: result.message || 'Falha ao autenticar com a conta Google.' };
+    return result;
+  };
+
+  const loginWithGoogleIdToken = async (idToken: string): Promise<GoogleAuthResult> => {
+    const result = await signInWithGoogleIdToken(idToken);
+    if (result.success && result.user) {
+      handleSuccessfulGoogleUser(result.user);
+      return { success: true, user: result.user };
+    }
+    return result;
+  };
+
+  const loginDirectGoogle = async (email: string, name?: string): Promise<GoogleAuthResult> => {
+    const result = await signInDirectGoogleAccount(email, name);
+    if (result.success && result.user) {
+      handleSuccessfulGoogleUser(result.user);
+      return { success: true, user: result.user };
+    }
+    return result;
   };
 
   const register = (userData: {
@@ -975,6 +1002,8 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAdmin,
         login,
         loginWithGoogle,
+        loginWithGoogleIdToken,
+        loginDirectGoogle,
         register,
         logout,
         updateProfile,

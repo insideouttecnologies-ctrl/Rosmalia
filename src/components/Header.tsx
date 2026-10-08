@@ -327,8 +327,11 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={async () => {
                     setIsGoogleSigningIn(true);
-                    await loginWithGoogle();
+                    const res = await loginWithGoogle();
                     setIsGoogleSigningIn(false);
+                    if (!res.success) {
+                      onOpenAuth();
+                    }
                   }}
                   disabled={isGoogleSigningIn}
                   className="hidden sm:inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#161324] hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-purple-950/60 rounded-xl shadow-xs transition active:scale-[0.98] disabled:opacity-60"
@@ -478,10 +481,15 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="space-y-2">
                   <button
                     onClick={async () => {
-                      setMobileMenuOpen(false);
                       setIsGoogleSigningIn(true);
-                      await loginWithGoogle();
+                      const res = await loginWithGoogle();
                       setIsGoogleSigningIn(false);
+                      if (res.success) {
+                        setMobileMenuOpen(false);
+                      } else {
+                        setMobileMenuOpen(false);
+                        onOpenAuth();
+                      }
                     }}
                     disabled={isGoogleSigningIn}
                     className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-[#161324] border border-slate-200 dark:border-purple-950/60 shadow-xs active:scale-[0.98]"
