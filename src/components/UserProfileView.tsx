@@ -24,7 +24,7 @@ import {
 import { useBlog } from '../context/BlogContext';
 import { PostCard } from './PostCard';
 import { DriveMediaModal } from './DriveMediaModal';
-import { DriveMediaFile } from '../services/googleDrive';
+import { DriveMediaFile, normalizeDriveImageUrl } from '../services/googleDrive';
 
 interface UserProfileViewProps {
   onOpenAdminPost: () => void;
@@ -69,22 +69,34 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onOpenAdminPos
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!isDriveConnected) {
-      const ok = await connectGoogleDrive();
-      if (!ok) return;
-    }
-
     setIsUploadingAvatar(true);
     setUploadPercent(20);
 
     try {
-      const uploaded = await uploadMediaToDrive(file, 'profiles', (p) => setUploadPercent(p));
-      setEditAvatar(uploaded.directUrl);
-      updateProfile({ avatar: uploaded.directUrl });
-      setDriveSuccessNotice(`Foto guardada com sucesso na pasta "Profile Pictures" do Google Drive!`);
-      setTimeout(() => setDriveSuccessNotice(null), 4000);
+      if (isDriveConnected) {
+        setUploadPercent(40);
+        const uploaded = await uploadMediaToDrive(file, 'profiles', (p) => setUploadPercent(p));
+        setEditAvatar(uploaded.directUrl);
+        updateProfile({ avatar: uploaded.directUrl });
+        setDriveSuccessNotice(`Foto guardada no Google Drive (Profile Pictures) e partilhada com todos!`);
+        setTimeout(() => setDriveSuccessNotice(null), 4500);
+      } else {
+        // Fallback: Read as optimized data URL so anyone can update immediately without blocking
+        setUploadPercent(50);
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          if (ev.target?.result) {
+            const dataUrl = ev.target.result as string;
+            setEditAvatar(dataUrl);
+            updateProfile({ avatar: dataUrl });
+            setDriveSuccessNotice(`Foto de perfil atualizada e visível para todos os utilizadores!`);
+            setTimeout(() => setDriveSuccessNotice(null), 4500);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     } catch (err: any) {
-      alert(`Falha no upload: ${err.message}`);
+      alert(`Falha no upload da foto: ${err.message}`);
     } finally {
       setIsUploadingAvatar(false);
       setUploadPercent(0);
@@ -217,23 +229,22 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onOpenAdminPos
               </span>
             )}
 
-            {/* Quick Upload Avatar to Google Drive Button (Exclusivo para Admin) */}
-            {currentUser.role === 'admin' && (
-              <label
-                className="absolute inset-0 bg-black/50 text-white rounded-3xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-center p-1"
-                title="Carregar nova foto para o Google Drive"
-              >
-                <Camera className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px] font-bold leading-tight">Drive Foto</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarDriveUpload}
-                  disabled={isUploadingAvatar}
-                  className="hidden"
-                />
-              </label>
-            )}
+            {/* Quick Upload Avatar Button (Disponível para Todos: Leitores e Admin) */}
+            <label
+              className="absolute inset-0 bg-black/60 text-white rounded-3xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-center p-1.5"
+              title="Carregar nova foto de perfil personalizada (Google Drive ou Ficheiro)"
+            >
+              <Camera className="w-5 h-5 mb-0.5 text-purple-200" />
+              <span className="text-[10px] font-bold leading-tight">Mudar Foto</span>
+              <span className="text-[9px] text-purple-200 leading-tight">Drive / Ficheiro</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarDriveUpload}
+                disabled={isUploadingAvatar}
+                className="hidden"
+              />
+            </label>
           </div>
 
           <div className="space-y-1.5">
@@ -671,32 +682,36 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onOpenAdminPos
               />
             </div>
 
-            {/* Google Drive Profile Picture Uploader Box (Exclusivo para Admin) */}
-            {currentUser.role === 'admin' && (
-              <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <HardDrive className="w-3.5 h-3.5 text-[#7C3AED]" />
-                    <span>Guardar Foto no Google Drive (Pasta: Profile Pictures)</span>
-                  </span>
-                  <span className="text-[10px] text-purple-600 dark:text-purple-300 font-semibold bg-purple-100 dark:bg-purple-900/50 px-2 py-0.5 rounded-full">
-                    Admin
-                  </span>
-                </div>
+            {/* Google Drive Profile Picture Uploader Box (Disponível para Todos: Leitores e Admin) */}
+            <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <HardDrive className="w-3.5 h-3.5 text-[#7C3AED]" />
+                  <span>Foto de Perfil Personalizada (Google Drive / Ficheiro)</span>
+                </span>
+                <span className="text-[10px] text-purple-600 dark:text-purple-300 font-semibold bg-purple-100 dark:bg-purple-900/50 px-2 py-0.5 rounded-full">
+                  {currentUser.role === 'admin' ? 'Admin' : 'Leitor'}
+                </span>
+              </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className="relative inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#7C3AED] text-white hover:bg-[#6D28D9] cursor-pointer shadow-xs transition">
-                    <UploadCloud className="w-3.5 h-3.5" />
-                    <span>{isUploadingAvatar ? `A carregar (${uploadPercent}%)...` : 'Enviar Foto do Computador'}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarDriveUpload}
-                      disabled={isUploadingAvatar}
-                      className="hidden"
-                    />
-                  </label>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Pode enviar uma foto do seu dispositivo (guardada com acesso público no Google Drive) ou colar um link do Google Drive para que todos a vejam.
+              </p>
 
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="relative inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#7C3AED] text-white hover:bg-[#6D28D9] cursor-pointer shadow-xs transition">
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  <span>{isUploadingAvatar ? `A carregar (${uploadPercent}%)...` : 'Enviar Foto do Dispositivo'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarDriveUpload}
+                    disabled={isUploadingAvatar}
+                    className="hidden"
+                  />
+                </label>
+
+                {isDriveConnected ? (
                   <button
                     type="button"
                     onClick={() => setIsDrivePickerOpen(true)}
@@ -705,20 +720,33 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onOpenAdminPos
                     <Folder className="w-3.5 h-3.5" />
                     <span>Ver Fotos em Profile Pictures</span>
                   </button>
-                </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => connectGoogleDrive()}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-purple-200 dark:border-purple-900 text-purple-700 dark:text-purple-300 hover:bg-purple-50 transition flex items-center gap-1.5"
+                  >
+                    <HardDrive className="w-3.5 h-3.5" />
+                    <span>Conectar Google Drive</span>
+                  </button>
+                )}
               </div>
-            )}
+            </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                URL da Foto de Perfil
+                URL da Foto de Perfil ou Link do Google Drive
               </label>
               <input
                 type="text"
                 value={editAvatar}
-                onChange={(e) => setEditAvatar(e.target.value)}
+                onChange={(e) => setEditAvatar(normalizeDriveImageUrl(e.target.value))}
+                placeholder="https://... ou https://drive.google.com/file/d/..."
                 className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-purple-950/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C3AED] text-slate-900 dark:text-white"
               />
+              <p className="mt-1 text-[11px] text-slate-400">
+                Os links de partilha do Google Drive são convertidos automaticamente para visualização universal pública por todos os utilizadores.
+              </p>
             </div>
 
             <button

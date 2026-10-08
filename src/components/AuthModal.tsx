@@ -305,6 +305,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <LogIn className="w-4 h-4" />
                 <span>Entrar na Minha Conta</span>
               </button>
+
+              {/* Admin Quick Credentials Box for Render / Production */}
+              <div className="pt-2">
+                <div className="p-3 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-slate-800 dark:text-purple-200 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#7C3AED]" />
+                      <span>Credenciais de Admin (Render):</span>
+                    </span>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      insideouttecnologies@gmail.com
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('insideouttecnologies@gmail.com');
+                      setPassword('adminPassword123');
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-[#7C3AED] dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800 hover:bg-purple-50 transition text-[11px] shrink-0"
+                  >
+                    Preencher Dados de Admin
+                  </button>
+                </div>
+              </div>
             </form>
           </div>
         )}

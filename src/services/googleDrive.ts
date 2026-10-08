@@ -67,6 +67,46 @@ export const initDriveAuth = (
   });
 };
 
+export const normalizeDriveImageUrl = (urlOrId: string): string => {
+  if (!urlOrId || typeof urlOrId !== 'string') return '';
+  const trimmed = urlOrId.trim();
+
+  // If already a high-performance lh3 googleusercontent link
+  if (trimmed.includes('lh3.googleusercontent.com/d/')) return trimmed;
+
+  // Pattern 1: https://drive.google.com/file/d/{FILE_ID}/...
+  const fileDMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileDMatch && fileDMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${fileDMatch[1]}`;
+  }
+
+  // Pattern 2: https://drive.google.com/open?id={FILE_ID} or ?id={FILE_ID}
+  const idParamMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idParamMatch && idParamMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${idParamMatch[1]}`;
+  }
+
+  // Pattern 3: https://drive.google.com/uc?export=view&id={FILE_ID}
+  const ucMatch = trimmed.match(/\/uc\?.*id=([a-zA-Z0-9_-]+)/);
+  if (ucMatch && ucMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${ucMatch[1]}`;
+  }
+
+  // Pattern 4: Bare Drive file ID (alphanumeric with hyphens/underscores, usually ~28-44 chars)
+  if (/^[a-zA-Z0-9_-]{25,50}$/.test(trimmed)) {
+    return `https://lh3.googleusercontent.com/d/${trimmed}`;
+  }
+
+  return trimmed;
+};
+
+export const setManualDriveAccessToken = (token: string) => {
+  cachedAccessToken = token;
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lume_drive_manual_token', token);
+  }
+};
+
 export const signInWithGoogleDrive = async (): Promise<{
   user: FirebaseUser;
   accessToken: string;
@@ -83,6 +123,15 @@ export const signInWithGoogleDrive = async (): Promise<{
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error('Erro na autenticação Google Drive:', error);
+    if (error.code === 'auth/unauthorized-domain') {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'o teu domínio Render';
+      throw new Error(
+        `Domínio Render não autorizado (${hostname})! Adicione "${hostname}" em Firebase Console > Authentication > Settings > Authorized Domains para ativar o popup da Google no Render.`
+      );
+    }
+    if (error.code === 'auth/popup-blocked') {
+      throw new Error('A janela pop-up do Google foi bloqueada pelo navegador. Permita pop-ups para este site.');
+    }
     throw error;
   } finally {
     isSigningIn = false;

@@ -176,10 +176,15 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleDarkMode}
-              aria-label="Alternar modo escuro"
+              title={darkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+              aria-label="Alternar modo escuro e claro"
               className="p-2 text-slate-600 dark:text-slate-300 hover:text-[#7C3AED] dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/50 rounded-full transition-colors"
             >
-              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {darkMode ? (
+                <Sun className="w-5 h-5 text-amber-400" />
+              ) : (
+                <Moon className="w-5 h-5 text-slate-700 dark:text-slate-200" />
+              )}
             </button>
 
             {/* Quick Search */}
@@ -417,6 +422,20 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>Minhas Atividades</span>
               </button>
             )}
+
+            {/* Mobile Dark/Light Theme Toggle */}
+            <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/40 text-xs">
+              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium">
+                {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#7C3AED]" />}
+                <span>Tema: {darkMode ? 'Modo Escuro' : 'Modo Claro'}</span>
+              </div>
+              <button
+                onClick={toggleDarkMode}
+                className="px-3 py-1 font-bold rounded-lg bg-[#7C3AED] hover:bg-[#6D28D9] text-white transition active:scale-95"
+              >
+                Alternar
+              </button>
+            </div>
 
             <div className="pt-2 border-t border-purple-100 dark:border-purple-950/50">
               {currentUser ? (

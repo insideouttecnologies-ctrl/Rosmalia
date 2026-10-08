@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Post, Comment, Photo, Category, ViewMode, Author, User } from '../types';
+import { Post, Comment, Photo, Category, ViewMode, Author, User, BannerItem } from '../types';
 import { initialCategories } from '../data/mockData';
 import {
   signInWithGoogleDrive,
@@ -9,6 +9,7 @@ import {
   deleteDriveFile,
   initDriveAuth,
   DriveMediaFile,
+  normalizeDriveImageUrl,
 } from '../services/googleDrive';
 import {
   seedInitialFirebaseData,
@@ -25,6 +26,8 @@ import {
   persistPhotoToFirebase,
   updatePhotoLikesInFirebase,
   persistUserToFirebase,
+  persistBannerItemsToFirebase,
+  loadBannerItemsFromFirebase,
   signInWithGooglePopup,
   signOutFromFirebase,
 } from '../services/firebase';
@@ -59,6 +62,10 @@ interface BlogContextType {
   }) => { success: boolean; message?: string };
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
+  // Banner items customization (up to 3 items)
+  bannerItems: BannerItem[];
+  updateBannerItems: (items: BannerItem[]) => void;
+  resetBannerToDefault: () => void;
   bookmarkedIds: string[];
   toggleBookmark: (postId: string) => void;
   likedPostIds: string[];
@@ -130,7 +137,44 @@ const STORAGE_KEYS = {
   USERS: 'lume_blog_users_v3',
   LIKED_POSTS: 'lume_blog_liked_posts_v3',
   READ_HISTORY: 'lume_blog_read_history_v3',
+  BANNER_ITEMS: 'lume_blog_banner_items_v3',
 };
+
+export const initialDefaultBannerItems: BannerItem[] = [
+  {
+    id: 'banner-item-1',
+    title: 'Lume: O espaço das boas ideias e multimédia',
+    subtitle: 'Ambiente pronto para publicações reais. Ensaios, galeria e multimédia sincronizados em tempo real.',
+    badge: 'Editorial Lume',
+    imageUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1600&q=80',
+    ctaText: 'Explorar Artigos',
+    ctaLink: 'articles',
+    authorName: 'Admin InsideOut',
+    active: true,
+  },
+  {
+    id: 'banner-item-2',
+    title: 'Galeria Fotográfica & Narrativas Visuais',
+    subtitle: 'Uma seleção visual autoral com metadados técnicos de câmara, lente e exposição.',
+    badge: 'Galeria Exclusiva',
+    imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=80',
+    ctaText: 'Ver Galeria',
+    ctaLink: 'gallery',
+    authorName: 'Lume Visual',
+    active: true,
+  },
+  {
+    id: 'banner-item-3',
+    title: 'Foco, Hábitos & Vida Minimalista',
+    subtitle: 'Reflexões sobre atenção intencional, hábitos sólidos e clareza mental na era digital.',
+    badge: 'Desenvolvimento',
+    imageUrl: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1600&q=80',
+    ctaText: 'Ler Reflexões',
+    ctaLink: 'articles',
+    authorName: 'Equipa Lume',
+    active: true,
+  },
+];
 
 export const ADMIN_USER: User = {
   id: 'user-admin-main',
@@ -265,6 +309,20 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return [];
   });
 
+  // Main Hero Banner custom items (up to 3 items)
+  const [bannerItems, setBannerItems] = useState<BannerItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.BANNER_ITEMS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(0, 3);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return initialDefaultBannerItems;
+  });
+
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.DARK_MODE);
@@ -320,6 +378,10 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
   }, [currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.BANNER_ITEMS, JSON.stringify(bannerItems));
+  }, [bannerItems]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.DARK_MODE, JSON.stringify(darkMode));
@@ -394,6 +456,13 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    // 7. Load customized banner items if available in Firebase
+    loadBannerItemsFromFirebase().then((remoteBanner) => {
+      if (isMounted && remoteBanner && Array.isArray(remoteBanner) && remoteBanner.length > 0) {
+        setBannerItems(remoteBanner.slice(0, 3));
+      }
+    }).catch(() => {});
+
     return () => {
       isMounted = false;
       if (typeof unsubPosts === 'function') unsubPosts();
@@ -403,6 +472,19 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (typeof unsubCats === 'function') unsubCats();
     };
   }, []);
+
+  const updateBannerItems = (items: BannerItem[]) => {
+    const limited = items.slice(0, 3);
+    setBannerItems(limited);
+    localStorage.setItem(STORAGE_KEYS.BANNER_ITEMS, JSON.stringify(limited));
+    persistBannerItemsToFirebase(limited);
+  };
+
+  const resetBannerToDefault = () => {
+    setBannerItems(initialDefaultBannerItems);
+    localStorage.setItem(STORAGE_KEYS.BANNER_ITEMS, JSON.stringify(initialDefaultBannerItems));
+    persistBannerItemsToFirebase(initialDefaultBannerItems);
+  };
 
   const triggerAdminSeeder = async (force: boolean = true) => {
     setIsFirebaseSyncing(true);
@@ -506,7 +588,11 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateProfile = (updates: Partial<User>) => {
     if (!currentUser) return;
-    const updated = { ...currentUser, ...updates };
+    const cleanUpdates = { ...updates };
+    if (cleanUpdates.avatar) {
+      cleanUpdates.avatar = normalizeDriveImageUrl(cleanUpdates.avatar);
+    }
+    const updated = { ...currentUser, ...cleanUpdates };
     setCurrentUser(updated);
     setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updated : u)));
     // Persist to Firebase Realtime Database
@@ -890,6 +976,9 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         updateProfile,
+        bannerItems,
+        updateBannerItems,
+        resetBannerToDefault,
         bookmarkedIds,
         toggleBookmark,
         likedPostIds,

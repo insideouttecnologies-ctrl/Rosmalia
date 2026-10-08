@@ -86,3 +86,16 @@ export interface User {
 }
 
 export type ViewMode = 'home' | 'articles' | 'article-detail' | 'gallery' | 'about' | 'contact' | 'profile';
+
+export interface BannerItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  badge: string;
+  imageUrl: string;
+  ctaText: string;
+  ctaLink?: string;
+  postId?: string;
+  authorName?: string;
+  active?: boolean;
+}

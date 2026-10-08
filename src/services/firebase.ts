@@ -10,7 +10,7 @@ import {
   update,
 } from 'firebase/database';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Post, Comment, Photo, Category, User } from '../types';
+import { Post, Comment, Photo, Category, User, BannerItem } from '../types';
 import { initialCategories } from '../data/mockData';
 
 // Ensure Firebase App is initialized once
@@ -261,6 +261,28 @@ export const persistUserToFirebase = async (user: User) => {
   }
 };
 
+export const persistBannerItemsToFirebase = async (bannerItems: BannerItem[]) => {
+  try {
+    await set(ref(rtdb, 'bannerItems'), bannerItems);
+  } catch (error) {
+    console.error('Erro ao guardar banner items no Firebase:', error);
+  }
+};
+
+export const loadBannerItemsFromFirebase = async (): Promise<BannerItem[] | null> => {
+  try {
+    const snapshot = await get(ref(rtdb, 'bannerItems'));
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      if (Array.isArray(data)) return data;
+      if (typeof data === 'object') return Object.values(data);
+    }
+  } catch (error) {
+    console.error('Erro ao carregar banner items do Firebase:', error);
+  }
+  return null;
+};
+
 /**
  * Standard Sign In With Google for all users (readers and admin)
  */
@@ -354,6 +376,25 @@ export const signInWithGooglePopup = async (): Promise<{ success: boolean; user?
     console.error('Google Sign-In Error:', error);
     if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
       return { success: false, message: 'Autenticação com Google cancelada.' };
+    }
+    if (error.code === 'auth/unauthorized-domain') {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'o teu domínio Render';
+      return {
+        success: false,
+        message: `Domínio não autorizado no Firebase Auth (${hostname})! No Render, adicione "${hostname}" em Firebase Console > Authentication > Settings > Authorized Domains. Dica: pode entrar agora com o email de Administrador: insideouttecnologies@gmail.com.`,
+      };
+    }
+    if (error.code === 'auth/popup-blocked') {
+      return {
+        success: false,
+        message: 'A janela pop-up do Google foi bloqueada pelo navegador. Permita pop-ups para este site nas definições do navegador.',
+      };
+    }
+    if (error.code === 'auth/operation-not-allowed') {
+      return {
+        success: false,
+        message: 'O login Google não está ativo no Firebase Console. Ative o fornecedor Google em Firebase > Authentication > Sign-in method.',
+      };
     }
     return { success: false, message: error.message || 'Falha ao autenticar com a conta Google.' };
   }
