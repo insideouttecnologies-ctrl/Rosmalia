@@ -49,6 +49,7 @@ interface BlogContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
   currentUser: User | null;
+  users: User[];
   isAdmin: boolean;
   setIsAdmin: (admin: boolean) => void;
   login: (email: string, password?: string) => { success: boolean; message?: string };
@@ -969,6 +970,7 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
         darkMode,
         toggleDarkMode,
         currentUser,
+        users,
         isAdmin,
         setIsAdmin,
         login,

@@ -99,3 +99,27 @@ export interface BannerItem {
   authorName?: string;
   active?: boolean;
 }
+
+export interface WebRTCCallSession {
+  id: string;
+  callerId: string;
+  callerName: string;
+  callerAvatar: string;
+  calleeId: string;
+  calleeName: string;
+  calleeAvatar?: string;
+  roomCode?: string;
+  status: 'ringing' | 'accepted' | 'declined' | 'missed' | 'ended';
+  createdAt: number;
+  expiresAt: number;
+  offer?: {
+    type: 'offer';
+    sdp: string;
+  };
+  answer?: {
+    type: 'answer';
+    sdp: string;
+  };
+  callerCandidates?: Record<string, { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null }>;
+  calleeCandidates?: Record<string, { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null }>;
+}

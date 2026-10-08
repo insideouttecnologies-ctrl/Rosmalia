@@ -14,7 +14,8 @@ import {
   User as UserIcon,
   Bookmark,
   ShieldCheck,
-  HardDrive
+  HardDrive,
+  Video
 } from 'lucide-react';
 import { ViewMode } from '../types';
 
@@ -23,6 +24,7 @@ interface HeaderProps {
   onOpenSearch: () => void;
   onOpenAuth: () => void;
   onOpenDrive?: () => void;
+  onOpenVideoCall: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   onOpenAuth,
   onOpenDrive,
+  onOpenVideoCall,
 }) => {
   const {
     activeView,
@@ -194,6 +197,17 @@ export const Header: React.FC<HeaderProps> = ({
               className="p-2 text-slate-600 dark:text-slate-300 hover:text-[#7C3AED] dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/50 rounded-full transition-colors"
             >
               <Search className="w-5 h-5" />
+            </button>
+
+            {/* WebRTC Video Call (1-to-1) */}
+            <button
+              onClick={onOpenVideoCall}
+              title="Iniciar Vídeo Chamada WebRTC (1-para-1)"
+              aria-label="Vídeo Chamada WebRTC"
+              className="p-2 text-slate-600 dark:text-slate-300 hover:text-[#7C3AED] dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/50 rounded-full transition-colors relative group"
+            >
+              <Video className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#12101e]" />
             </button>
 
             {/* Google Drive Media Center - Exclusivo para Administrador */}
@@ -422,6 +436,18 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>Minhas Atividades</span>
               </button>
             )}
+
+            {/* Mobile WebRTC Video Call */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenVideoCall();
+              }}
+              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2.5 text-[#7C3AED] dark:text-purple-300 bg-purple-50/80 dark:bg-purple-950/40 hover:bg-purple-100 transition"
+            >
+              <Video className="w-4 h-4" />
+              <span>Vídeo Chamada WebRTC (1-para-1)</span>
+            </button>
 
             {/* Mobile Dark/Light Theme Toggle */}
             <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/40 text-xs">

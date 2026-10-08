@@ -13,9 +13,14 @@ import { SearchModal } from './components/SearchModal';
 import { AuthModal } from './components/AuthModal';
 import { DriveMediaModal } from './components/DriveMediaModal';
 import { Footer } from './components/Footer';
+import { IncomingCallModal } from './components/IncomingCallModal';
+import { WebRTCVideoCallModal } from './components/WebRTCVideoCallModal';
+import { StartVideoCallModal } from './components/StartVideoCallModal';
+import { WebRTCCallSession } from './types';
+import { listenIncomingCallsForUser } from './services/webrtcService';
 
 const BlogMainContent: React.FC = () => {
-  const { activeView, setActiveView, selectedPost, setSelectedPost } = useBlog();
+  const { activeView, setActiveView, selectedPost, setSelectedPost, currentUser } = useBlog();
 
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [adminInitialTab, setAdminInitialTab] = useState<'post' | 'photo'>('post');
@@ -23,6 +28,46 @@ const BlogMainContent: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login');
   const [isDriveMediaModalOpen, setIsDriveMediaModalOpen] = useState(false);
+
+  // WebRTC Video Call states
+  const [isStartCallModalOpen, setIsStartCallModalOpen] = useState(false);
+  const [activeCallSession, setActiveCallSession] = useState<WebRTCCallSession | null>(null);
+  const [isCaller, setIsCaller] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<WebRTCCallSession | null>(null);
+
+  // Global listener for incoming WebRTC video calls
+  useEffect(() => {
+    const targetId = currentUser?.id || 'guest-user';
+    const targetEmail = currentUser?.email || 'guest@lume.pt';
+
+    const unsubscribe = listenIncomingCallsForUser(targetId, targetEmail, (call) => {
+      if (call && (!activeCallSession || activeCallSession.status === 'ended')) {
+        setIncomingCall(call);
+      } else {
+        setIncomingCall(null);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [currentUser?.id, currentUser?.email, activeCallSession]);
+
+  // Handle incoming call acceptance
+  const handleAcceptIncomingCall = (call: WebRTCCallSession) => {
+    setIncomingCall(null);
+    setIsCaller(false);
+    setActiveCallSession(call);
+  };
+
+  const handleDeclineIncomingCall = () => {
+    setIncomingCall(null);
+  };
+
+  const handleCallInitiated = (session: WebRTCCallSession) => {
+    setIsCaller(true);
+    setActiveCallSession(session);
+  };
 
   // Dynamic SEO meta updates on route/view changes
   useEffect(() => {
@@ -66,6 +111,7 @@ const BlogMainContent: React.FC = () => {
         onOpenSearch={() => setIsSearchModalOpen(true)}
         onOpenAuth={() => handleOpenAuth('login')}
         onOpenDrive={() => setIsDriveMediaModalOpen(true)}
+        onOpenVideoCall={() => setIsStartCallModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -103,6 +149,7 @@ const BlogMainContent: React.FC = () => {
           <UserProfileView
             onOpenAdminPost={handleOpenAdminForPost}
             onOpenAuth={() => handleOpenAuth('login')}
+            onOpenVideoCall={() => setIsStartCallModalOpen(true)}
           />
         )}
       </main>
@@ -137,6 +184,32 @@ const BlogMainContent: React.FC = () => {
         folderType="posts"
         title="Gestor Google Drive - Lume Media"
       />
+
+      {/* WebRTC Start Call Modal */}
+      <StartVideoCallModal
+        isOpen={isStartCallModalOpen}
+        onClose={() => setIsStartCallModalOpen(false)}
+        onCallInitiated={handleCallInitiated}
+        onOpenAuth={() => handleOpenAuth('login')}
+      />
+
+      {/* WebRTC Incoming Call Alert Modal with 8-second countdown */}
+      {incomingCall && (
+        <IncomingCallModal
+          call={incomingCall}
+          onAccept={handleAcceptIncomingCall}
+          onDecline={handleDeclineIncomingCall}
+        />
+      )}
+
+      {/* WebRTC Active / Outgoing Video Call Window */}
+      {activeCallSession && (
+        <WebRTCVideoCallModal
+          session={activeCallSession}
+          isCaller={isCaller}
+          onClose={() => setActiveCallSession(null)}
+        />
+      )}
     </div>
   );
 };
