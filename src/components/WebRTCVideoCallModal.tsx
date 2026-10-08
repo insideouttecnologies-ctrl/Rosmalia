@@ -12,11 +12,16 @@ import {
   User,
   Clock,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Volume2,
+  VolumeX,
+  Volume1,
+  Radio
 } from 'lucide-react';
 import { WebRTCCallSession } from '../types';
 import {
   RTC_CONFIG,
+  optimizeSdpForVoice,
   updateCallSessionInFirebase,
   addIceCandidateInFirebase,
   listenRemoteIceCandidates,
@@ -50,6 +55,8 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
   const [isVideoDisabled, setIsVideoDisabled] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
+  const [remoteVolume, setRemoteVolume] = useState(1.0);
 
   // Media refs
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -103,16 +110,41 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
     return () => clearInterval(timer);
   }, [callState]);
 
-  // 3. WebRTC Setup & Media Stream Initialization
+  // 3. Keep Remote Video Audio synced with Speaker Volume state
+  useEffect(() => {
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.volume = isSpeakerMuted ? 0 : remoteVolume;
+      remoteVideoRef.current.muted = isSpeakerMuted;
+    }
+  }, [remoteVolume, isSpeakerMuted]);
+
+  // 4. WebRTC Setup & Media Stream Initialization
   useEffect(() => {
     let isMounted = true;
 
     const setupWebRTC = async () => {
       try {
-        // A. Acquire Local Media (Camera + Mic)
+        // A. Acquire Local Media (Camera + Studio-Grade HD Audio with Noise/Echo Suppression)
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true,
+          video: {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            frameRate: { ideal: 30 },
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 48000,
+            sampleSize: 16,
+            googEchoCancellation: true,
+            googAutoGainControl: true,
+            googNoiseSuppression: true,
+            googHighpassFilter: true,
+            googTypingNoiseDetection: true,
+            googAudioMirroring: false,
+          } as any,
         });
 
         if (!isMounted) {
@@ -120,9 +152,23 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
           return;
         }
 
+        // Apply audio track enhancement constraints if supported by browser
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack && audioTrack.applyConstraints) {
+          audioTrack
+            .applyConstraints({
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            })
+            .catch(() => {});
+        }
+
         localStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
+          localVideoRef.current.muted = true;
+          localVideoRef.current.volume = 0;
         }
 
         // B. Initialize RTCPeerConnection
@@ -134,6 +180,8 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
         remoteStreamRef.current = remoteStream;
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = remoteStream;
+          remoteVideoRef.current.muted = isSpeakerMuted;
+          remoteVideoRef.current.volume = isSpeakerMuted ? 0 : remoteVolume;
         }
 
         pc.ontrack = (event) => {
@@ -142,7 +190,7 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
           });
           if (isMounted) {
             setCallState('connected');
-            setStatusMessage('Ligação WebRTC P2P Direta Conectada');
+            setStatusMessage('Ligação WebRTC HD P2P Conectada');
           }
         };
 
@@ -150,6 +198,21 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
         stream.getTracks().forEach((track) => {
           pc.addTrack(track, stream);
         });
+
+        // Optimize audio sender bitrate for 64kbps HD Voice
+        try {
+          const senders = pc.getSenders();
+          const audioSender = senders.find((s) => s.track?.kind === 'audio');
+          if (audioSender && audioSender.getParameters) {
+            const params = audioSender.getParameters();
+            if (params.encodings && params.encodings.length > 0) {
+              params.encodings[0].maxBitrate = 64000;
+              audioSender.setParameters(params).catch(() => {});
+            }
+          }
+        } catch (e) {
+          console.warn('Audio sender parameters warning:', e);
+        }
 
         // E. Send local ICE Candidates to Firebase
         pc.onicecandidate = (event) => {
@@ -178,13 +241,19 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
         );
         cleanupListenersRef.current.push(stopIceListener);
 
-        // G. Signaling Handshake (Offer / Answer)
+        // G. Signaling Handshake (Offer / Answer with Voice-Optimized SDP)
         if (isCaller) {
-          // Caller generates SDP Offer
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
+          // Caller generates SDP Offer with HD voice parameters
+          const offer = await pc.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true,
+          });
+          const optimizedOfferSdp = optimizeSdpForVoice(offer.sdp || '');
+          const enhancedOffer = new RTCSessionDescription({ type: 'offer', sdp: optimizedOfferSdp });
+          await pc.setLocalDescription(enhancedOffer);
+
           await updateCallSessionInFirebase(session.id, {
-            offer: { type: 'offer', sdp: offer.sdp || '' },
+            offer: { type: 'offer', sdp: enhancedOffer.sdp || '' },
           });
 
           // Caller listens for Callee Answer
@@ -194,8 +263,9 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
             if (updatedCall.status === 'accepted' && updatedCall.answer && !pc.currentRemoteDescription) {
               ringtone.stopRinging();
               setCallState('connected');
-              setStatusMessage('Chamada Aceite! A negociar fluxo P2P...');
-              await pc.setRemoteDescription(new RTCSessionDescription(updatedCall.answer));
+              setStatusMessage('Chamada Aceite! Ligação HD P2P Conectada.');
+              const optimizedAnswerSdp = optimizeSdpForVoice(updatedCall.answer.sdp || '');
+              await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: optimizedAnswerSdp }));
             } else if (updatedCall.status === 'declined') {
               ringtone.stopRinging();
               setCallState('ended');
@@ -212,19 +282,26 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
           });
           cleanupListenersRef.current.push(stopSessionListener);
         } else {
-          // Callee receives Offer and generates SDP Answer
+          // Callee receives Offer and generates SDP Answer with HD voice parameters
           if (session.offer) {
-            await pc.setRemoteDescription(new RTCSessionDescription(session.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+            const optimizedRemoteOffer = optimizeSdpForVoice(session.offer.sdp || '');
+            await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: optimizedRemoteOffer }));
+
+            const answer = await pc.createAnswer({
+              offerToReceiveAudio: true,
+              offerToReceiveVideo: true,
+            });
+            const optimizedAnswerSdp = optimizeSdpForVoice(answer.sdp || '');
+            const enhancedAnswer = new RTCSessionDescription({ type: 'answer', sdp: optimizedAnswerSdp });
+            await pc.setLocalDescription(enhancedAnswer);
 
             await updateCallSessionInFirebase(session.id, {
               status: 'accepted',
-              answer: { type: 'answer', sdp: answer.sdp || '' },
+              answer: { type: 'answer', sdp: enhancedAnswer.sdp || '' },
             });
 
             setCallState('connected');
-            setStatusMessage('Ligação WebRTC Estabelecida');
+            setStatusMessage('Ligação WebRTC HD Estabelecida');
           }
 
           // Callee listens for call termination
@@ -358,9 +435,14 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
 
         {/* Security & Protocol Badges */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden sm:inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 text-xs font-semibold text-purple-200">
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/15 backdrop-blur-md border border-emerald-500/25 text-xs font-semibold text-emerald-300">
+            <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <span>Voz HD 64kbps (Filtro Anti-Eco)</span>
+          </div>
+
+          <div className="hidden md:inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 text-xs font-semibold text-purple-200">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>WebRTC P2P Encriptado</span>
+            <span>WebRTC P2P</span>
           </div>
 
           <button
@@ -467,6 +549,7 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
         {/* Toggle Microphone */}
         <button
           onClick={toggleMute}
+          title={isMuted ? 'Ativar o teu microfone' : 'Desativar o teu microfone (Mudo)'}
           aria-label={isMuted ? 'Ativar microfone' : 'Desativar microfone'}
           className={`p-3.5 sm:p-4 rounded-2xl backdrop-blur-md transition-all active:scale-95 ${
             isMuted
@@ -480,6 +563,7 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
         {/* Toggle Camera */}
         <button
           onClick={toggleVideo}
+          title={isVideoDisabled ? 'Ligar a tua câmara' : 'Desligar a tua câmara'}
           aria-label={isVideoDisabled ? 'Ativar câmara' : 'Desativar câmara'}
           className={`p-3.5 sm:p-4 rounded-2xl backdrop-blur-md transition-all active:scale-95 ${
             isVideoDisabled
@@ -489,6 +573,48 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
         >
           {isVideoDisabled ? <VideoOff className="w-5 h-5" /> : <VideoIcon className="w-5 h-5" />}
         </button>
+
+        {/* Remote Speaker Audio & Volume Control */}
+        <div className="relative group flex items-center">
+          <button
+            onClick={() => setIsSpeakerMuted(!isSpeakerMuted)}
+            title={isSpeakerMuted ? 'Ativar som do interlocutor' : `Silenciar som (${Math.round(remoteVolume * 100)}%)`}
+            aria-label="Controlo de Som do Altifalante"
+            className={`p-3.5 sm:p-4 rounded-2xl backdrop-blur-md transition-all active:scale-95 ${
+              isSpeakerMuted
+                ? 'bg-amber-500/80 hover:bg-amber-600 text-white'
+                : 'bg-white/15 hover:bg-white/25 text-white'
+            }`}
+          >
+            {isSpeakerMuted ? (
+              <VolumeX className="w-5 h-5 text-amber-200" />
+            ) : remoteVolume < 0.5 ? (
+              <Volume1 className="w-5 h-5 text-purple-200" />
+            ) : (
+              <Volume2 className="w-5 h-5 text-purple-200" />
+            )}
+          </button>
+
+          {/* Quick Volume Slider Popover on hover/focus */}
+          <div className="hidden group-hover:flex absolute bottom-full mb-3 left-1/2 -translate-x-1/2 p-2.5 bg-slate-900/95 border border-purple-500/30 rounded-2xl shadow-xl flex-col items-center gap-1.5 backdrop-blur-md z-40">
+            <span className="text-[10px] font-bold text-purple-300 font-mono">
+              {isSpeakerMuted ? 'Mudo' : `${Math.round(remoteVolume * 100)}%`}
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isSpeakerMuted ? 0 : remoteVolume}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setRemoteVolume(val);
+                if (val > 0) setIsSpeakerMuted(false);
+              }}
+              className="w-20 h-1.5 accent-[#7C3AED] bg-slate-700 rounded-lg cursor-pointer"
+            />
+          </div>
+        </div>
 
         {/* End Call / Hang Up (Big Red Button) */}
         <button

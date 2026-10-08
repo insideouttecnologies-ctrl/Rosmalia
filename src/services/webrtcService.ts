@@ -13,6 +13,44 @@ export const RTC_CONFIG: RTCConfiguration = {
 };
 
 /**
+ * Modifies WebRTC SDP to enforce crystal clear HD voice with forward error correction (FEC),
+ * mono configuration, and higher Opus bitrate (64 kbps).
+ */
+export const optimizeSdpForVoice = (sdp: string): string => {
+  if (!sdp) return sdp;
+
+  let modified = sdp;
+
+  // 1. If Opus fmtp line exists, inject crystal-clear voice parameters
+  if (modified.includes('a=fmtp:111')) {
+    modified = modified.replace(
+      /a=fmtp:111 ([^\r\n]+)/g,
+      (_match, existingParams) => {
+        const clean = existingParams
+          .split(';')
+          .filter((p: string) => {
+            const key = p.trim().split('=')[0];
+            return !['maxaveragebitrate', 'stereo', 'sprop-stereo', 'useinbandfec', 'usedtx', 'cbr'].includes(key);
+          })
+          .join(';');
+
+        return `a=fmtp:111 ${clean};maxaveragebitrate=64000;stereo=0;sprop-stereo=0;useinbandfec=1;usedtx=1;cbr=0`;
+      }
+    );
+  }
+
+  // 2. Set audio bandwidth
+  if (modified.includes('m=audio')) {
+    modified = modified.replace(
+      /(m=audio[^\r\n]+\r?\n)/,
+      '$1b=AS:64\r\n'
+    );
+  }
+
+  return modified;
+};
+
+/**
  * Creates a new WebRTC Call in Firebase Realtime Database
  */
 export const createCallSessionInFirebase = async (session: WebRTCCallSession): Promise<void> => {
