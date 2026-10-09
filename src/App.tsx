@@ -7,6 +7,7 @@ import { PhotoGallery } from './components/PhotoGallery';
 import { AboutView } from './components/AboutView';
 import { ContactView } from './components/ContactView';
 import { UserProfileView } from './components/UserProfileView';
+import { CurriculumView } from './components/CurriculumView';
 import { ArticleDetail } from './components/ArticleDetail';
 import { AdminModal } from './components/AdminModal';
 import { SearchModal } from './components/SearchModal';
@@ -77,6 +78,8 @@ const BlogMainContent: React.FC = () => {
       document.title = 'Todos os Artigos & Ensaios – Lume';
     } else if (activeView === 'gallery') {
       document.title = 'Galeria Fotográfica – Lume';
+    } else if (activeView === 'curriculum') {
+      document.title = 'Currículo Digital & Portfólio – Lume';
     } else if (activeView === 'about') {
       document.title = 'Sobre o Projeto – Lume';
     } else if (activeView === 'contact') {
@@ -138,6 +141,9 @@ const BlogMainContent: React.FC = () => {
           <PhotoGallery onOpenAdminPhoto={handleOpenAdminForPhoto} />
         )}
 
+        {/* VIEW: Currículo Digital & Portfólio */}
+        {activeView === 'curriculum' && <CurriculumView />}
+
         {/* VIEW 5: Sobre (Dedicated Story & Equipment Page) */}
         {activeView === 'about' && <AboutView />}
 
@@ -190,6 +196,10 @@ const BlogMainContent: React.FC = () => {
         isOpen={isStartCallModalOpen}
         onClose={() => setIsStartCallModalOpen(false)}
         onCallInitiated={handleCallInitiated}
+        onJoinCall={(session) => {
+          setIsCaller(false);
+          setActiveCallSession(session);
+        }}
         onOpenAuth={() => handleOpenAuth('login')}
       />
 

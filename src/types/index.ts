@@ -85,7 +85,49 @@ export interface User {
   readHistoryIds: string[];
 }
 
-export type ViewMode = 'home' | 'articles' | 'article-detail' | 'gallery' | 'about' | 'contact' | 'profile';
+export type ViewMode =
+  | 'home'
+  | 'articles'
+  | 'article-detail'
+  | 'gallery'
+  | 'about'
+  | 'contact'
+  | 'profile'
+  | 'curriculum';
+
+export interface CurriculumProfile {
+  fullName: string;
+  headline: string;
+  summary: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  linkedin?: string;
+  github?: string;
+  avatarUrl?: string;
+  statusBadge?: string;
+  updatedAt?: string;
+}
+
+export interface CurriculumItem {
+  id: string;
+  category: string;
+  title: string;
+  subtitle?: string;
+  period?: string;
+  location?: string;
+  description: string;
+  tags?: string[];
+  link?: string;
+  order?: number;
+}
+
+export interface DigitalCurriculum {
+  profile: CurriculumProfile;
+  items: CurriculumItem[];
+  customCategories?: string[];
+}
 
 export interface BannerItem {
   id: string;

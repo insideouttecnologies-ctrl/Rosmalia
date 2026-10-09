@@ -3,10 +3,10 @@ import { Post, Category, Photo, Comment, Author } from '../types';
 export const initialCategories: Category[] = [];
 
 export const defaultAuthor: Author = {
-  name: 'Admin InsideOut',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-  role: 'Administrador & Autor Editorial',
-  bio: 'Administrador e autor principal da plataforma Lume. Escrevendo sobre foco, hábitos e minimalismo.',
+  name: 'Mariana Costa',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=350&q=80',
+  role: 'Estudante do 13º Ano de Gestão Empresarial',
+  bio: 'Finalista do 13º ano do Curso Técnico de Gestão Empresarial. Escrevendo sobre estratégia, finanças práticas, liderança jovem e inovação.',
 };
 
 // No static dummy data - production clean state:

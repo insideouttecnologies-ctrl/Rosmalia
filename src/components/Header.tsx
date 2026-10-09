@@ -15,7 +15,8 @@ import {
   Bookmark,
   ShieldCheck,
   HardDrive,
-  Video
+  Video,
+  FileText
 } from 'lucide-react';
 import { ViewMode } from '../types';
 
@@ -141,6 +142,21 @@ export const Header: React.FC<HeaderProps> = ({
               <ImageIcon className="w-3.5 h-3.5 opacity-70" />
               Galeria
               {activeView === 'gallery' && (
+                <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#7C3AED] dark:bg-purple-400 rounded-full" />
+              )}
+            </button>
+
+            <button
+              onClick={() => handleNavClick('curriculum')}
+              className={`relative px-3 py-2 flex items-center gap-1.5 transition-colors ${
+                activeView === 'curriculum'
+                  ? 'text-[#7C3AED] dark:text-purple-400 font-semibold'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5 opacity-70" />
+              Currículo
+              {activeView === 'curriculum' && (
                 <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#7C3AED] dark:bg-purple-400 rounded-full" />
               )}
             </button>
@@ -404,6 +420,17 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <ImageIcon className="w-4 h-4 text-purple-600" />
               Galeria de Fotos
+            </button>
+            <button
+              onClick={() => handleNavClick('curriculum')}
+              className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition ${
+                activeView === 'curriculum'
+                  ? 'bg-purple-50 dark:bg-purple-950/60 text-[#7C3AED] dark:text-purple-300'
+                  : 'text-slate-700 dark:text-slate-200'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-purple-600" />
+              Currículo & Portfólio
             </button>
             <button
               onClick={() => handleNavClick('about')}

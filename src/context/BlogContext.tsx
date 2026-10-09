@@ -1,6 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Post, Comment, Photo, Category, ViewMode, Author, User, BannerItem } from '../types';
+import {
+  Post,
+  Comment,
+  Photo,
+  Category,
+  ViewMode,
+  Author,
+  User,
+  BannerItem,
+  DigitalCurriculum,
+  CurriculumItem,
+  CurriculumProfile,
+} from '../types';
 import { initialCategories } from '../data/mockData';
+import { defaultCurriculumData } from '../data/defaultCurriculum';
 import {
   signInWithGoogleDrive,
   disconnectGoogleDrive,
@@ -33,6 +46,8 @@ import {
   signInDirectGoogleAccount,
   GoogleAuthResult,
   signOutFromFirebase,
+  saveCurriculumToFirebase,
+  listenCurriculumInFirebase,
 } from '../services/firebase';
 import { User as FirebaseUser } from 'firebase/auth';
 
@@ -55,6 +70,13 @@ interface BlogContextType {
   users: User[];
   isAdmin: boolean;
   setIsAdmin: (admin: boolean) => void;
+  // Digital Curriculum / Portfolio
+  curriculum: DigitalCurriculum;
+  updateCurriculumProfile: (profileUpdates: Partial<CurriculumProfile>) => void;
+  addCurriculumItem: (itemData: Omit<CurriculumItem, 'id'>) => void;
+  updateCurriculumItem: (itemId: string, updates: Partial<CurriculumItem>) => void;
+  deleteCurriculumItem: (itemId: string) => void;
+  resetCurriculumToDefault: () => void;
   login: (email: string, password?: string) => { success: boolean; message?: string };
   loginWithGoogle: () => Promise<GoogleAuthResult>;
   loginWithGoogleIdToken: (idToken: string) => Promise<GoogleAuthResult>;
@@ -144,18 +166,19 @@ const STORAGE_KEYS = {
   LIKED_POSTS: 'lume_blog_liked_posts_v3',
   READ_HISTORY: 'lume_blog_read_history_v3',
   BANNER_ITEMS: 'lume_blog_banner_items_v3',
+  CURRICULUM: 'lume_blog_curriculum_v2',
 };
 
 export const initialDefaultBannerItems: BannerItem[] = [
   {
     id: 'banner-item-1',
-    title: 'Lume: O espaço das boas ideias e multimédia',
-    subtitle: 'Ambiente pronto para publicações reais. Ensaios, galeria e multimédia sincronizados em tempo real.',
-    badge: 'Editorial Lume',
+    title: 'Portfólio de Gestão Empresarial & Currículo Digital',
+    subtitle: 'Finalista do 13º ano. Ensaios, simulação empresarial, projetos práticos e Prova de Aptidão Profissional (PAP).',
+    badge: 'Gestão 13º Ano',
     imageUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1600&q=80',
-    ctaText: 'Explorar Artigos',
-    ctaLink: 'articles',
-    authorName: 'Admin InsideOut',
+    ctaText: 'Ver Currículo & Portfólio',
+    ctaLink: 'curriculum',
+    authorName: 'Mariana Costa',
     active: true,
   },
   {
@@ -184,11 +207,11 @@ export const initialDefaultBannerItems: BannerItem[] = [
 
 export const ADMIN_USER: User = {
   id: 'user-admin-main',
-  name: 'Admin InsideOut',
+  name: 'Mariana Costa',
   email: 'insideouttecnologies@gmail.com',
   password: 'adminPassword123',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-  bio: 'Administrador e autor principal da plataforma Lume.',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=350&q=80',
+  bio: 'Finalista do 13º ano de Gestão Empresarial | Administradora da plataforma e criadora de conteúdos.',
   role: 'admin',
   createdAt: '05 de Outubro, 2026',
   savedPostIds: [],
@@ -329,6 +352,22 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return initialDefaultBannerItems;
   });
 
+  // Digital Curriculum / Portfolio state
+  const [curriculum, setCurriculum] = useState<DigitalCurriculum>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CURRICULUM);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.profile && Array.isArray(parsed.items)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return defaultCurriculumData;
+  });
+
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.DARK_MODE);
@@ -388,6 +427,10 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.BANNER_ITEMS, JSON.stringify(bannerItems));
   }, [bannerItems]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(curriculum));
+  }, [curriculum]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.DARK_MODE, JSON.stringify(darkMode));
@@ -469,6 +512,17 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }).catch(() => {});
 
+    // 8. Real-time listener for Digital Curriculum / Portfolio
+    const unsubCurriculum = listenCurriculumInFirebase((remoteCurriculum) => {
+      if (
+        remoteCurriculum &&
+        remoteCurriculum.profile &&
+        Array.isArray(remoteCurriculum.items)
+      ) {
+        setCurriculum(remoteCurriculum);
+      }
+    });
+
     return () => {
       isMounted = false;
       if (typeof unsubPosts === 'function') unsubPosts();
@@ -476,6 +530,7 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (typeof unsubGallery === 'function') unsubGallery();
       if (typeof unsubUsers === 'function') unsubUsers();
       if (typeof unsubCats === 'function') unsubCats();
+      if (typeof unsubCurriculum === 'function') unsubCurriculum();
     };
   }, []);
 
@@ -490,6 +545,95 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setBannerItems(initialDefaultBannerItems);
     localStorage.setItem(STORAGE_KEYS.BANNER_ITEMS, JSON.stringify(initialDefaultBannerItems));
     persistBannerItemsToFirebase(initialDefaultBannerItems);
+  };
+
+  // Digital Curriculum / Portfolio Actions
+  const updateCurriculumProfile = (profileUpdates: Partial<CurriculumProfile>) => {
+    setCurriculum((prev) => {
+      const updated: DigitalCurriculum = {
+        ...prev,
+        profile: {
+          ...prev.profile,
+          ...profileUpdates,
+          updatedAt: new Date().getFullYear().toString(),
+        },
+      };
+      localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(updated));
+      saveCurriculumToFirebase(updated).catch(console.error);
+      return updated;
+    });
+  };
+
+  const addCurriculumItem = (itemData: Omit<CurriculumItem, 'id'>) => {
+    const newItem: CurriculumItem = {
+      ...itemData,
+      id: `cv-item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      order: (curriculum.items.length || 0) + 1,
+    };
+
+    setCurriculum((prev) => {
+      const existingCats = prev.customCategories || [];
+      const hasCategory = existingCats.some(
+        (c) => c.toLowerCase() === itemData.category.toLowerCase()
+      );
+      const updatedCats = hasCategory ? existingCats : [...existingCats, itemData.category];
+
+      const updated: DigitalCurriculum = {
+        ...prev,
+        customCategories: updatedCats,
+        items: [newItem, ...prev.items],
+      };
+      localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(updated));
+      saveCurriculumToFirebase(updated).catch(console.error);
+      return updated;
+    });
+  };
+
+  const updateCurriculumItem = (itemId: string, updates: Partial<CurriculumItem>) => {
+    setCurriculum((prev) => {
+      const updatedItems = prev.items.map((item) =>
+        item.id === itemId ? { ...item, ...updates } : item
+      );
+
+      // Check if new category was introduced
+      let updatedCats = prev.customCategories || [];
+      if (updates.category) {
+        const hasCategory = updatedCats.some(
+          (c) => c.toLowerCase() === updates.category!.toLowerCase()
+        );
+        if (!hasCategory) {
+          updatedCats = [...updatedCats, updates.category];
+        }
+      }
+
+      const updated: DigitalCurriculum = {
+        ...prev,
+        customCategories: updatedCats,
+        items: updatedItems,
+      };
+      localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(updated));
+      saveCurriculumToFirebase(updated).catch(console.error);
+      return updated;
+    });
+  };
+
+  const deleteCurriculumItem = (itemId: string) => {
+    setCurriculum((prev) => {
+      const updatedItems = prev.items.filter((item) => item.id !== itemId);
+      const updated: DigitalCurriculum = {
+        ...prev,
+        items: updatedItems,
+      };
+      localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(updated));
+      saveCurriculumToFirebase(updated).catch(console.error);
+      return updated;
+    });
+  };
+
+  const resetCurriculumToDefault = () => {
+    setCurriculum(defaultCurriculumData);
+    localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(defaultCurriculumData));
+    saveCurriculumToFirebase(defaultCurriculumData).catch(console.error);
   };
 
   const triggerAdminSeeder = async (force: boolean = true) => {
@@ -1000,6 +1144,12 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
         users,
         isAdmin,
         setIsAdmin,
+        curriculum,
+        updateCurriculumProfile,
+        addCurriculumItem,
+        updateCurriculumItem,
+        deleteCurriculumItem,
+        resetCurriculumToDefault,
         login,
         loginWithGoogle,
         loginWithGoogleIdToken,

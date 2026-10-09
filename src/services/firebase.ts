@@ -13,10 +13,11 @@ import {
   get,
   remove,
   onValue,
+  off,
   update,
 } from 'firebase/database';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Post, Comment, Photo, Category, User, BannerItem } from '../types';
+import { Post, Comment, Photo, Category, User, BannerItem, DigitalCurriculum } from '../types';
 import { initialCategories } from '../data/mockData';
 
 // Ensure Firebase App is initialized once
@@ -507,4 +508,37 @@ export const signInDirectGoogleAccount = async (
   } catch (error: any) {
     return { success: false, message: error.message || 'Erro ao sincronizar perfil Google.' };
   }
+};
+
+/**
+ * Saves or updates digital curriculum in Firebase Realtime Database
+ */
+export const saveCurriculumToFirebase = async (curriculum: DigitalCurriculum): Promise<void> => {
+  try {
+    const curriculumRef = ref(rtdb, 'curriculum');
+    await set(curriculumRef, curriculum);
+  } catch (error) {
+    console.error('Erro ao guardar currículo no Firebase:', error);
+    throw error;
+  }
+};
+
+/**
+ * Listens to curriculum updates in real-time
+ */
+export const listenCurriculumInFirebase = (
+  callback: (curriculum: DigitalCurriculum | null) => void
+): (() => void) => {
+  const curriculumRef = ref(rtdb, 'curriculum');
+  const listener = onValue(curriculumRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback(snapshot.val());
+    } else {
+      callback(null);
+    }
+  });
+
+  return () => {
+    off(curriculumRef, 'value', listener);
+  };
 };

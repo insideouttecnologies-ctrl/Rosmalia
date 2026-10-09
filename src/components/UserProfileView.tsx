@@ -279,7 +279,16 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
         </div>
 
         {/* Top Header Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setActiveView('curriculum')}
+            className="px-3.5 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 rounded-xl transition flex items-center gap-1.5 border border-purple-200 dark:border-purple-800"
+            title="Ver Currículo Digital & Portfólio"
+          >
+            <FileText className="w-3.5 h-3.5 text-[#7C3AED]" />
+            <span>Currículo Digital</span>
+          </button>
+
           {onOpenVideoCall && (
             <button
               onClick={onOpenVideoCall}

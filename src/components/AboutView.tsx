@@ -12,17 +12,18 @@ import {
   ChevronDown,
   Layers,
   Award,
-  CheckCircle2
+  CheckCircle2,
+  FileText
 } from 'lucide-react';
 import { useBlog } from '../context/BlogContext';
 
 export const AboutView: React.FC = () => {
-  const { currentUser } = useBlog();
+  const { currentUser, setActiveView } = useBlog();
   const author = {
-    name: currentUser?.name || 'Admin InsideOut',
-    avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-    role: currentUser?.role === 'admin' ? 'Editor & Administrador' : 'Autor Editorial',
-    bio: currentUser?.bio || 'Administrador e autor principal da plataforma Lume. Escrevendo sobre foco, hábitos e minimalismo.',
+    name: currentUser?.name || 'Mariana Costa',
+    avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=350&q=80',
+    role: currentUser?.role === 'admin' ? 'Gestora & Administradora Editorial' : 'Finalista do 13º Ano de Gestão Empresarial',
+    bio: currentUser?.bio || 'Estudante finalista do 13º ano de Gestão Empresarial. Escrevendo sobre estratégia organizacional, finanças práticas, análise de mercado e empreendedorismo jovem.',
   };
 
   const [activeTab, setActiveTab] = useState<'mission' | 'gear' | 'faq'>('mission');
@@ -30,20 +31,20 @@ export const AboutView: React.FC = () => {
 
   const faqs = [
     {
-      q: 'Com que frequência são publicados novos artigos?',
-      a: 'Publicamos habitualmente 2 a 3 ensaios por semana, sempre às terças e quintas-feiras, com foco em qualidade e profundidade editorial em vez de volume superficial.'
+      q: 'Qual é o foco principal deste espaço digital?',
+      a: 'Este espaço reúne ensaios práticos sobre gestão empresarial, resumos de estudos de caso, análises de mercado, apontamentos de preparação para o ensino superior e o meu currículo digital completo como finalista do 13º ano.'
     },
     {
-      q: 'Posso utilizar as fotografias da galeria nos meus projetos?',
-      a: 'Sim! As fotografias capturadas e partilhadas na galeria estão sob licença Creative Commons com atribuição ao Lume e ao respetivo fotógrafo.'
+      q: 'O que aborda a Prova de Aptidão Profissional (PAP)?',
+      a: 'A minha PAP é focada no desenvolvimento integral de um Plano de Negócios sustentável, contemplando estudo de viabilidade económico-financeira, análise de break-even e estratégias de marketing digital.'
     },
     {
-      q: 'Como posso sugerir um tema ou colaborar com um artigo?',
-      a: 'Podes aceder à secção "Contato" e enviar a tua proposta de artigo ou tema. Respondemos habitualmente em menos de 48 horas úteis.'
+      q: 'O currículo digital pode ser descarregado em PDF?',
+      a: 'Sim! Na secção "Currículo", podes clicar em "Baixar PDF" para obter uma versão formatada, limpa e pronta para impressão ou partilha institucional.'
     },
     {
-      q: 'Como funciona o registo de conta no Lume?',
-      a: 'O registo é 100% gratuito e permite guardar os teus artigos favoritos, acompanhar o teu histórico de leituras e participar com comentários nas publicações.'
+      q: 'Como posso entrar em contacto para oportunidades de estágio ou projetos?',
+      a: 'Podes aceder à secção "Contato", iniciar uma vídeo chamada WebRTC em direto ou enviar uma mensagem por e-mail.'
     }
   ];
 
@@ -53,14 +54,14 @@ export const AboutView: React.FC = () => {
       <div className="text-center max-w-2xl mx-auto">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold text-[#7C3AED] dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 mb-3">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Sobre o Projeto</span>
+          <span>Sobre o Projeto & Perfil</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-          Lume: O espaço das boas ideias
+          Lume: Portfólio & Gestão Empresarial
         </h1>
         <p className="mt-3 text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-          Um refúgio digital criado para cultivar clareza mental, boas conversas e partilha aberta
-          de reflexões sobre tecnologia, hábitos duradouros e estética fotográfica.
+          O meu espaço digital de partilha de conhecimento, projetos práticos de gestão, ensaios
+          analíticos e portfólio profissional como finalista do 13º ano.
         </p>
       </div>
 
@@ -84,17 +85,26 @@ export const AboutView: React.FC = () => {
           </p>
           <div className="flex flex-wrap justify-center md:justify-start gap-4 text-xs text-slate-500 dark:text-slate-400 pt-2">
             <span className="flex items-center gap-1.5">
-              <Camera className="w-4 h-4 text-purple-500" />
-              Fotógrafo & Desenvolvedor
+              <Award className="w-4 h-4 text-purple-500" />
+              Gestão & Estratégia
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-purple-500" />
+              Finanças & Análise de Dados
             </span>
             <span className="flex items-center gap-1.5">
               <BookOpen className="w-4 h-4 text-purple-500" />
-              Ensaios Reflexivos
+              Finalista do 13º Ano (PAP & FCT)
             </span>
-            <span className="flex items-center gap-1.5">
-              <Coffee className="w-4 h-4 text-purple-500" />
-              Cultura Minimalista
-            </span>
+          </div>
+          <div className="pt-2 flex justify-center md:justify-start">
+            <button
+              onClick={() => setActiveView('curriculum')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#7C3AED] hover:bg-[#6D28D9] shadow-md shadow-purple-600/20 transition active:scale-95"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Ver Currículo Digital & Portfólio</span>
+            </button>
           </div>
         </div>
       </div>
@@ -109,7 +119,7 @@ export const AboutView: React.FC = () => {
               : 'text-slate-600 dark:text-slate-300 hover:bg-purple-50 dark:hover:bg-purple-950/40'
           }`}
         >
-          Filosofia & Pilares
+          Valores & Visão de Gestão
         </button>
 
         <button
@@ -120,7 +130,7 @@ export const AboutView: React.FC = () => {
               : 'text-slate-600 dark:text-slate-300 hover:bg-purple-50 dark:hover:bg-purple-950/40'
           }`}
         >
-          Equipamento & Setup
+          Ferramentas & Metodologias
         </button>
 
         <button
@@ -184,33 +194,33 @@ export const AboutView: React.FC = () => {
           <div className="flex items-center gap-3">
             <Cpu className="w-6 h-6 text-[#7C3AED]" />
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-              O que usamos para criar e fotografar
+              Ferramentas de Gestão, Software & Metodologias
             </h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Câmara Principal</span>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Sony Alpha 7 IV (Full Frame)</h4>
-              <p className="text-xs text-slate-500">Sensor de 33MP, cores precisas e excelente alcance dinâmico para crepúsculo.</p>
+              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Análise Financeira & Cálculo</span>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Microsoft Excel Avançado & Modelagem</h4>
+              <p className="text-xs text-slate-500">Tabelas dinâmicas, fórmulas condicionais, dashboards de KPI, análise de rentabilidade e ponto de equilíbrio.</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Câmara Compacta</span>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Fujifilm X-T5 & Leica Q2</h4>
-              <p className="text-xs text-slate-500">Para fotografia de rua, café e notas visuais diárias discretas.</p>
+              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Sistemas de Gestão Empresarial</span>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Software ERP & Faturação Comercial</h4>
+              <p className="text-xs text-slate-500">Operação em módulos de faturação, contas correntes, stocks e conformidade fiscal (ex: Primavera, PHC, Moloni).</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Objetivas Prediletas</span>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">FE 24-70mm f/2.8 GM II & 35mm f/1.4</h4>
-              <p className="text-xs text-slate-500">Nitidez cirúrgica e bokeh orgânico para composições minimalistas.</p>
+              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Visualização de Dados</span>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Power BI & Relatórios Executivos</h4>
+              <p className="text-xs text-slate-500">Construção de relatórios interativos para apoio à tomada de decisão e análise comparativa de receitas e despesas.</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Ambiente de Trabalho</span>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">MacBook Pro M3 Max & Monitor 4K</h4>
-              <p className="text-xs text-slate-500">Teclado mecânico com switches lineares suaves e iluminação quente de 2700K.</p>
+              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Organização & Métodos Ágeis</span>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Notion, Trello (Kanban) & Google Workspace</h4>
+              <p className="text-xs text-slate-500">Gestão de cronogramas da PAP, reuniões de equipa, atas e documentação empresarial estruturada.</p>
             </div>
           </div>
         </div>

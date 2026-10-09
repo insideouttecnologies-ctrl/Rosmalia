@@ -9,7 +9,7 @@ export const Footer: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleNav = (view: 'home' | 'articles' | 'gallery' | 'about' | 'contact') => {
+  const handleNav = (view: 'home' | 'articles' | 'gallery' | 'curriculum' | 'about' | 'contact') => {
     setActiveView(view);
     setSelectedPost(null);
     setSelectedCategory(null);
@@ -49,6 +49,9 @@ export const Footer: React.FC = () => {
             </button>
             <button onClick={() => handleNav('gallery')} className="hover:text-[#7C3AED] transition">
               Galeria
+            </button>
+            <button onClick={() => handleNav('curriculum')} className="hover:text-[#7C3AED] transition">
+              Currículo
             </button>
             <button onClick={() => handleNav('about')} className="hover:text-[#7C3AED] transition">
               Sobre

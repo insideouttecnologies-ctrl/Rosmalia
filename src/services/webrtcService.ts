@@ -52,6 +52,57 @@ export const updateCallSessionInFirebase = async (
 };
 
 /**
+ * Gets a specific call session by ID from Firebase
+ */
+export const getCallSessionFromFirebase = async (callId: string): Promise<WebRTCCallSession | null> => {
+  try {
+    const callRef = ref(rtdb, `calls/${callId}`);
+    const snapshot = await get(callRef);
+    if (snapshot.exists()) {
+      return snapshot.val() as WebRTCCallSession;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Erro ao obter sessão ${callId}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Finds an active call by Room Code
+ */
+export const findActiveRoomCall = async (roomCode: string): Promise<WebRTCCallSession | null> => {
+  try {
+    const code = roomCode.trim().toUpperCase();
+    // 1. Direct key attempt
+    const directSession = await getCallSessionFromFirebase(`call-room-${code}`);
+    if (directSession && (directSession.status === 'ringing' || directSession.status === 'accepted')) {
+      return directSession;
+    }
+
+    // 2. Scan all calls
+    const callsRef = ref(rtdb, 'calls');
+    const snapshot = await get(callsRef);
+    if (!snapshot.exists()) return null;
+
+    const allCalls: Record<string, WebRTCCallSession> = snapshot.val();
+    const found = Object.values(allCalls).find((call) => {
+      const isCodeMatch =
+        (call.roomCode && call.roomCode.toUpperCase() === code) ||
+        (call.calleeId && call.calleeId.toUpperCase() === code) ||
+        call.id.toUpperCase() === `CALL-ROOM-${code}`;
+      const isAlive = call.status === 'ringing' || call.status === 'accepted';
+      return isCodeMatch && isAlive;
+    });
+
+    return found || null;
+  } catch (err) {
+    console.error('Erro ao procurar sala WebRTC:', err);
+    return null;
+  }
+};
+
+/**
  * Listens to a specific call's state
  */
 export const listenCallSessionInFirebase = (
@@ -93,8 +144,8 @@ export const listenIncomingCallsForUser = (
     const activeIncoming = Object.values(allCalls).find((call) => {
       // Must be ringing status
       if (call.status !== 'ringing') return false;
-      // Must not be expired (within 8 seconds threshold + 2s buffer)
-      if (call.expiresAt && Date.now() > call.expiresAt + 2000) return false;
+      // Must not be expired (16-second rule with generous 10s buffer for clock drift)
+      if (call.expiresAt && Date.now() > call.expiresAt + 10000) return false;
       // Target matches this user
       const matchesCallee =
         (call.calleeId && call.calleeId === userId) ||

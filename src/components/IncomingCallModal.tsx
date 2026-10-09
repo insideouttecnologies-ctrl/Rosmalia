@@ -14,16 +14,16 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
   onAccept,
   onDecline,
 }) => {
-  // Exactly 8 seconds countdown requirement
-  const [secondsRemaining, setSecondsRemaining] = useState(8);
+  // Exactly 16 seconds countdown requirement
+  const [secondsRemaining, setSecondsRemaining] = useState(16);
 
   useEffect(() => {
     // Start pleasant ringtone
     ringtone.startRinging();
 
-    // Calculate actual remaining seconds based on expiresAt or fixed 8 seconds
+    // Calculate actual remaining seconds based on expiresAt or fixed 16 seconds
     const startTime = Date.now();
-    const duration = 8000;
+    const duration = 16000;
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
@@ -57,7 +57,7 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
     onDecline(call);
   };
 
-  const percentProgress = ((8 - secondsRemaining) / 8) * 100;
+  const percentProgress = ((16 - secondsRemaining) / 16) * 100;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
@@ -97,7 +97,7 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
           </p>
         </div>
 
-        {/* 8-Seconds Countdown Display */}
+        {/* 16-Seconds Countdown Display */}
         <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-amber-900 dark:text-amber-200">
             <span className="flex items-center gap-1.5">
@@ -118,7 +118,7 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
           </div>
 
           <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80">
-            Tem 8 segundos para aceitar a chamada antes de expirar.
+            Tem 16 segundos para aceitar a chamada antes de expirar.
           </p>
         </div>
 
