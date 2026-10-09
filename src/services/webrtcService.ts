@@ -9,45 +9,18 @@ export const RTC_CONFIG: RTCConfiguration = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+    { urls: 'stun:stun.services.mozilla.com' },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 /**
- * Modifies WebRTC SDP to enforce crystal clear HD voice with forward error correction (FEC),
- * mono configuration, and higher Opus bitrate (64 kbps).
+ * Validates and safely passes SDP without risky regex mutations that corrupt SDP formats
  */
 export const optimizeSdpForVoice = (sdp: string): string => {
-  if (!sdp) return sdp;
-
-  let modified = sdp;
-
-  // 1. If Opus fmtp line exists, inject crystal-clear voice parameters
-  if (modified.includes('a=fmtp:111')) {
-    modified = modified.replace(
-      /a=fmtp:111 ([^\r\n]+)/g,
-      (_match, existingParams) => {
-        const clean = existingParams
-          .split(';')
-          .filter((p: string) => {
-            const key = p.trim().split('=')[0];
-            return !['maxaveragebitrate', 'stereo', 'sprop-stereo', 'useinbandfec', 'usedtx', 'cbr'].includes(key);
-          })
-          .join(';');
-
-        return `a=fmtp:111 ${clean};maxaveragebitrate=64000;stereo=0;sprop-stereo=0;useinbandfec=1;usedtx=1;cbr=0`;
-      }
-    );
-  }
-
-  // 2. Set audio bandwidth
-  if (modified.includes('m=audio')) {
-    modified = modified.replace(
-      /(m=audio[^\r\n]+\r?\n)/,
-      '$1b=AS:64\r\n'
-    );
-  }
-
-  return modified;
+  if (!sdp) return '';
+  return sdp;
 };
 
 /**

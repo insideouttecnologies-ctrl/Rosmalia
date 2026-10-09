@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, Bookmark, Heart, MessageSquare, Play, Headphones, HardDrive } from 'lucide-react';
+import { Calendar, Clock, Bookmark, Heart, MessageSquare, Play, Headphones, HardDrive, Trash2 } from 'lucide-react';
 import { Post } from '../types';
 import { useBlog } from '../context/BlogContext';
 
@@ -8,9 +8,19 @@ interface PostCardProps {
 }
 
 export const PostCard: React.FC<PostCardProps> = ({ post }) => {
-  const { openPostDetail, bookmarkedIds, toggleBookmark, likePost, comments } = useBlog();
+  const { openPostDetail, bookmarkedIds, toggleBookmark, likePost, comments, isAdmin, deletePost } = useBlog();
   const isBookmarked = bookmarkedIds.includes(post.id);
   const postComments = comments[post.id] || [];
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmed = window.confirm(
+      `Tem a certeza de que deseja eliminar o artigo "${post.title}"?\n\nEsta ação é permanente e removerá o post da base de dados Firebase.`
+    );
+    if (confirmed) {
+      deletePost(post.id);
+    }
+  };
 
   return (
     <article
@@ -50,7 +60,18 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
         )}
 
         {/* Floating Quick Action Buttons */}
-        <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10">
+          {isAdmin && (
+            <button
+              onClick={handleDelete}
+              aria-label="Eliminar artigo"
+              title="Eliminar artigo (Admin)"
+              className="p-2 rounded-full backdrop-blur-md bg-rose-600/90 hover:bg-rose-700 text-white shadow-md transition active:scale-95"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+
           <button
             onClick={(e) => {
               e.stopPropagation();

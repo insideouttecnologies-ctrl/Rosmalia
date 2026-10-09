@@ -61,6 +61,7 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
   // Media refs
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // WebRTC refs
@@ -110,11 +111,15 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
     return () => clearInterval(timer);
   }, [callState]);
 
-  // 3. Keep Remote Video Audio synced with Speaker Volume state
+  // 3. Keep Remote Video & Audio synced with Speaker Volume state
   useEffect(() => {
     if (remoteVideoRef.current) {
       remoteVideoRef.current.volume = isSpeakerMuted ? 0 : remoteVolume;
       remoteVideoRef.current.muted = isSpeakerMuted;
+    }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.volume = isSpeakerMuted ? 0 : remoteVolume;
+      remoteAudioRef.current.muted = isSpeakerMuted;
     }
   }, [remoteVolume, isSpeakerMuted]);
 
@@ -124,44 +129,33 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
 
     const setupWebRTC = async () => {
       try {
-        // A. Acquire Local Media (Camera + Studio-Grade HD Audio with Noise/Echo Suppression)
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280, max: 1920 },
-            height: { ideal: 720, max: 1080 },
-            frameRate: { ideal: 30 },
-          },
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-            sampleRate: 48000,
-            sampleSize: 16,
-            googEchoCancellation: true,
-            googAutoGainControl: true,
-            googNoiseSuppression: true,
-            googHighpassFilter: true,
-            googTypingNoiseDetection: true,
-            googAudioMirroring: false,
-          } as any,
-        });
+        // A. Acquire Local Media (Camera + Microphone with clean mono audio)
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: 'user',
+            },
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+              channelCount: 1,
+            },
+          });
+        } catch (mediaErr) {
+          console.warn('Fallback to basic getUserMedia constraints:', mediaErr);
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          });
+        }
 
         if (!isMounted) {
           stream.getTracks().forEach((t) => t.stop());
           return;
-        }
-
-        // Apply audio track enhancement constraints if supported by browser
-        const audioTrack = stream.getAudioTracks()[0];
-        if (audioTrack && audioTrack.applyConstraints) {
-          audioTrack
-            .applyConstraints({
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            })
-            .catch(() => {});
         }
 
         localStreamRef.current = stream;
@@ -169,6 +163,7 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
           localVideoRef.current.srcObject = stream;
           localVideoRef.current.muted = true;
           localVideoRef.current.volume = 0;
+          localVideoRef.current.play().catch(() => {});
         }
 
         // B. Initialize RTCPeerConnection
@@ -183,14 +178,51 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
           remoteVideoRef.current.muted = isSpeakerMuted;
           remoteVideoRef.current.volume = isSpeakerMuted ? 0 : remoteVolume;
         }
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = remoteStream;
+          remoteAudioRef.current.muted = isSpeakerMuted;
+          remoteAudioRef.current.volume = isSpeakerMuted ? 0 : remoteVolume;
+        }
 
+        // Handle incoming remote audio and video tracks safely
         pc.ontrack = (event) => {
-          event.streams[0].getTracks().forEach((track) => {
-            remoteStream.addTrack(track);
-          });
+          if (event.track) {
+            remoteStream.addTrack(event.track);
+          }
+          if (event.streams && event.streams[0]) {
+            event.streams[0].getTracks().forEach((track) => {
+              if (!remoteStream.getTracks().some((t) => t.id === track.id)) {
+                remoteStream.addTrack(track);
+              }
+            });
+          }
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.play().catch(() => {});
+          }
+          if (remoteAudioRef.current) {
+            remoteAudioRef.current.play().catch(() => {});
+          }
           if (isMounted) {
             setCallState('connected');
-            setStatusMessage('Ligação WebRTC HD P2P Conectada');
+            setStatusMessage('Ligação WebRTC Ativa');
+          }
+        };
+
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === 'connected') {
+            if (isMounted) {
+              setCallState('connected');
+              setStatusMessage('Ligação WebRTC Ativa');
+            }
+          }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+          if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+            if (isMounted) {
+              setCallState('connected');
+              setStatusMessage('Ligação WebRTC Ativa');
+            }
           }
         };
 
@@ -198,21 +230,6 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
         stream.getTracks().forEach((track) => {
           pc.addTrack(track, stream);
         });
-
-        // Optimize audio sender bitrate for 64kbps HD Voice
-        try {
-          const senders = pc.getSenders();
-          const audioSender = senders.find((s) => s.track?.kind === 'audio');
-          if (audioSender && audioSender.getParameters) {
-            const params = audioSender.getParameters();
-            if (params.encodings && params.encodings.length > 0) {
-              params.encodings[0].maxBitrate = 64000;
-              audioSender.setParameters(params).catch(() => {});
-            }
-          }
-        } catch (e) {
-          console.warn('Audio sender parameters warning:', e);
-        }
 
         // E. Send local ICE Candidates to Firebase
         pc.onicecandidate = (event) => {
@@ -225,35 +242,52 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
           }
         };
 
-        // F. Listen for Remote ICE Candidates from Firebase
+        // F. Buffered ICE Candidate processing (prevents dropped candidates before remoteDescription)
+        const candidateQueue: RTCIceCandidateInit[] = [];
+        let canAcceptCandidates = false;
+
+        const drainCandidateQueue = async () => {
+          canAcceptCandidates = true;
+          while (candidateQueue.length > 0) {
+            const cand = candidateQueue.shift();
+            if (cand) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(cand));
+              } catch (e) {
+                console.warn('Erro ao processar candidate da fila:', e);
+              }
+            }
+          }
+        };
+
         const stopIceListener = listenRemoteIceCandidates(
           session.id,
           isCaller ? 'callee' : 'caller',
           async (candidateInit) => {
-            try {
-              if (pc.remoteDescription) {
+            if (canAcceptCandidates && pc.remoteDescription) {
+              try {
                 await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+              } catch (err) {
+                console.warn('Erro ao aplicar ICE candidate remoto:', err);
               }
-            } catch (err) {
-              console.warn('Erro ao aplicar ICE candidate remoto:', err);
+            } else {
+              candidateQueue.push(candidateInit);
             }
           }
         );
         cleanupListenersRef.current.push(stopIceListener);
 
-        // G. Signaling Handshake (Offer / Answer with Voice-Optimized SDP)
+        // G. Signaling Handshake (Offer / Answer)
         if (isCaller) {
-          // Caller generates SDP Offer with HD voice parameters
+          // Caller generates SDP Offer
           const offer = await pc.createOffer({
             offerToReceiveAudio: true,
             offerToReceiveVideo: true,
           });
-          const optimizedOfferSdp = optimizeSdpForVoice(offer.sdp || '');
-          const enhancedOffer = new RTCSessionDescription({ type: 'offer', sdp: optimizedOfferSdp });
-          await pc.setLocalDescription(enhancedOffer);
+          await pc.setLocalDescription(offer);
 
           await updateCallSessionInFirebase(session.id, {
-            offer: { type: 'offer', sdp: enhancedOffer.sdp || '' },
+            offer: { type: 'offer', sdp: offer.sdp || '' },
           });
 
           // Caller listens for Callee Answer
@@ -263,9 +297,9 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
             if (updatedCall.status === 'accepted' && updatedCall.answer && !pc.currentRemoteDescription) {
               ringtone.stopRinging();
               setCallState('connected');
-              setStatusMessage('Chamada Aceite! Ligação HD P2P Conectada.');
-              const optimizedAnswerSdp = optimizeSdpForVoice(updatedCall.answer.sdp || '');
-              await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: optimizedAnswerSdp }));
+              setStatusMessage('Chamada Aceite! Ligação Conectada.');
+              await pc.setRemoteDescription(new RTCSessionDescription(updatedCall.answer));
+              await drainCandidateQueue();
             } else if (updatedCall.status === 'declined') {
               ringtone.stopRinging();
               setCallState('ended');
@@ -282,32 +316,50 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
           });
           cleanupListenersRef.current.push(stopSessionListener);
         } else {
-          // Callee receives Offer and generates SDP Answer with HD voice parameters
+          // Callee receives Offer and generates SDP Answer (with dynamic arrival support)
+          let answered = false;
+
+          const answerOffer = async (offerData: { type: RTCSdpType; sdp: string }) => {
+            if (answered) return;
+            answered = true;
+            try {
+              await pc.setRemoteDescription(new RTCSessionDescription(offerData));
+              await drainCandidateQueue();
+
+              const answer = await pc.createAnswer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true,
+              });
+              await pc.setLocalDescription(answer);
+
+              await updateCallSessionInFirebase(session.id, {
+                status: 'accepted',
+                answer: { type: 'answer', sdp: answer.sdp || '' },
+              });
+
+              if (isMounted) {
+                setCallState('connected');
+                setStatusMessage('Ligação WebRTC Estabelecida');
+              }
+            } catch (err: any) {
+              console.error('Erro ao responder à oferta WebRTC:', err);
+            }
+          };
+
           if (session.offer) {
-            const optimizedRemoteOffer = optimizeSdpForVoice(session.offer.sdp || '');
-            await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: optimizedRemoteOffer }));
-
-            const answer = await pc.createAnswer({
-              offerToReceiveAudio: true,
-              offerToReceiveVideo: true,
-            });
-            const optimizedAnswerSdp = optimizeSdpForVoice(answer.sdp || '');
-            const enhancedAnswer = new RTCSessionDescription({ type: 'answer', sdp: optimizedAnswerSdp });
-            await pc.setLocalDescription(enhancedAnswer);
-
-            await updateCallSessionInFirebase(session.id, {
-              status: 'accepted',
-              answer: { type: 'answer', sdp: enhancedAnswer.sdp || '' },
-            });
-
-            setCallState('connected');
-            setStatusMessage('Ligação WebRTC HD Estabelecida');
+            await answerOffer(session.offer);
           }
 
-          // Callee listens for call termination
-          const stopSessionListener = listenCallSessionInFirebase(session.id, (updatedCall) => {
+          // Callee listens for incoming offer (if not present on click) and call termination
+          const stopSessionListener = listenCallSessionInFirebase(session.id, async (updatedCall) => {
             if (!updatedCall || !isMounted) return;
+
+            if (!answered && updatedCall.offer) {
+              await answerOffer(updatedCall.offer);
+            }
+
             if (updatedCall.status === 'ended') {
+              ringtone.stopRinging();
               setCallState('ended');
               setStatusMessage('A chamada foi terminada.');
             }
@@ -465,6 +517,13 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
           className={`w-full h-full object-cover transition-opacity duration-500 ${
             callState === 'connected' ? 'opacity-100' : 'opacity-20'
           }`}
+        />
+        {/* Dedicated Remote Audio Playback Element */}
+        <audio
+          ref={remoteAudioRef}
+          autoPlay
+          playsInline
+          className="hidden"
         />
 
         {/* Overlay when Call is Ringing / Awaiting 8-Second Answer */}

@@ -13,7 +13,10 @@ import {
   FileVideo,
   Play,
   Check,
-  Database
+  Database,
+  Trash2,
+  Search,
+  AlertTriangle
 } from 'lucide-react';
 import { useBlog } from '../context/BlogContext';
 import { DriveMediaModal } from './DriveMediaModal';
@@ -22,7 +25,7 @@ import { DriveMediaFile } from '../services/googleDrive';
 interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab?: 'post' | 'photo';
+  initialTab?: 'post' | 'photo' | 'manage';
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({
@@ -41,11 +44,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     uploadMediaToDrive,
     triggerAdminSeeder,
     isFirebaseSyncing,
+    posts,
+    deletePost,
   } = useBlog();
 
-  const [activeTab, setActiveTab] = useState<'post' | 'photo'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'post' | 'photo' | 'manage'>(initialTab);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [manageFilter, setManageFilter] = useState('');
 
   const handleRunSeeder = async () => {
     setIsSeeding(true);
@@ -347,6 +353,21 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             >
               <Camera className="w-4 h-4" />
               <span>Nova Fotografia para Galeria</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('manage')}
+              className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition ${
+                activeTab === 'manage'
+                  ? 'border-rose-500 text-rose-600 dark:text-rose-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Trash2 className="w-4 h-4 text-rose-500" />
+              <span>Gerir & Eliminar Artigos</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300">
+                {posts.length}
+              </span>
             </button>
           </div>
 
@@ -780,6 +801,112 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 </button>
               </div>
             </form>
+          )}
+
+          {/* Tab 3: Manage & Delete Existing Posts */}
+          {activeTab === 'manage' && (
+            <div className="p-6 overflow-y-auto space-y-4">
+              {/* Header and Search filter */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <Trash2 className="w-4 h-4 text-rose-500" />
+                      <span>Gestão e Eliminação de Artigos</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Elimina artigos publicados diretamente da base de dados Firebase.
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 shrink-0 self-start sm:self-auto">
+                    {posts.length} {posts.length === 1 ? 'artigo' : 'artigos'} no total
+                  </span>
+                </div>
+
+                {/* Search bar */}
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Pesquisar por título ou categoria..."
+                    value={manageFilter}
+                    onChange={(e) => setManageFilter(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#120f20] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
+                  />
+                </div>
+              </div>
+
+              {/* Articles List */}
+              <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1">
+                {posts
+                  .filter((p) => {
+                    if (!manageFilter.trim()) return true;
+                    const q = manageFilter.toLowerCase();
+                    return (
+                      p.title.toLowerCase().includes(q) ||
+                      p.category.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((post) => (
+                    <div
+                      key={post.id}
+                      className="p-3 rounded-2xl bg-slate-50 dark:bg-[#19152b] border border-slate-200/80 dark:border-purple-950/60 flex items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-purple-800/60 transition"
+                    >
+                      {/* Post Thumbnail & Info */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={post.coverImage}
+                          alt={post.title}
+                          referrerPolicy="no-referrer"
+                          className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-[#7C3AED] dark:text-purple-300">
+                              {post.category}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {post.date}
+                            </span>
+                          </div>
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                            {post.title}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            {post.excerpt}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Delete Action Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const confirmed = window.confirm(
+                            `Tem a certeza de que deseja eliminar permanentemente o artigo:\n\n"${post.title}"?\n\nEsta ação removerá o artigo da base de dados Firebase em tempo real.`
+                          );
+                          if (confirmed) {
+                            deletePost(post.id);
+                            setSuccessMessage(`Artigo "${post.title}" eliminado com sucesso!`);
+                            setTimeout(() => setSuccessMessage(null), 3000);
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-600 border border-rose-200 dark:border-rose-900 transition flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95"
+                        title="Eliminar este artigo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Eliminar</span>
+                      </button>
+                    </div>
+                  ))}
+
+                {posts.length === 0 && (
+                  <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#19152b] rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
+                    Ainda não existem artigos publicados.
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>

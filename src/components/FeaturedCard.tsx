@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, ArrowRight, Bookmark } from 'lucide-react';
+import { Calendar, Clock, ArrowRight, Bookmark, Trash2 } from 'lucide-react';
 import { Post } from '../types';
 import { useBlog } from '../context/BlogContext';
 
@@ -8,8 +8,18 @@ interface FeaturedCardProps {
 }
 
 export const FeaturedCard: React.FC<FeaturedCardProps> = ({ post }) => {
-  const { openPostDetail, bookmarkedIds, toggleBookmark } = useBlog();
+  const { openPostDetail, bookmarkedIds, toggleBookmark, isAdmin, deletePost } = useBlog();
   const isBookmarked = bookmarkedIds.includes(post.id);
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmed = window.confirm(
+      `Tem a certeza de que deseja eliminar o artigo em destaque "${post.title}"?\n\nEsta ação removerá o artigo permanentemente.`
+    );
+    if (confirmed) {
+      deletePost(post.id);
+    }
+  };
 
   return (
     <div className="relative group overflow-hidden rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 min-h-[380px] sm:min-h-[420px] flex flex-col justify-end bg-slate-900">
@@ -24,8 +34,19 @@ export const FeaturedCard: React.FC<FeaturedCardProps> = ({ post }) => {
       {/* Measured Atmospheric Gradient Scrim for high text legibility */}
       <div className="absolute inset-0 bg-gradient-to-t from-[#150d2a]/95 via-[#1a1133]/65 to-transparent pointer-events-none" />
 
-      {/* Top right quick bookmark */}
-      <div className="absolute top-5 right-5 z-10">
+      {/* Top right quick actions */}
+      <div className="absolute top-5 right-5 z-10 flex items-center gap-2">
+        {isAdmin && (
+          <button
+            onClick={handleDelete}
+            aria-label="Eliminar artigo em destaque"
+            title="Eliminar artigo (Admin)"
+            className="p-2.5 rounded-full backdrop-blur-md bg-rose-600/90 hover:bg-rose-700 text-white shadow-md transition-all active:scale-95"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+
         <button
           onClick={(e) => {
             e.stopPropagation();

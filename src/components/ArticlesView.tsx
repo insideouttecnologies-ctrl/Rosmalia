@@ -11,7 +11,8 @@ import {
   Eye,
   ArrowRight,
   Filter,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { useBlog } from '../context/BlogContext';
 import { PostCard } from './PostCard';
@@ -26,6 +27,8 @@ export const ArticlesView: React.FC = () => {
     openPostDetail,
     searchQuery,
     setSearchQuery,
+    isAdmin,
+    deletePost,
   } = useBlog();
 
   const [sortBy, setSortBy] = useState<'recent' | 'popular' | 'likes'>('recent');
@@ -250,6 +253,25 @@ export const ArticlesView: React.FC = () => {
               </div>
 
               <div className="self-end sm:self-center shrink-0 flex items-center gap-2">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (
+                        window.confirm(
+                          `Tem a certeza de que deseja eliminar o artigo "${post.title}"?\n\nEsta ação é permanente na base de dados Firebase.`
+                        )
+                      ) {
+                        deletePost(post.id);
+                      }
+                    }}
+                    title="Eliminar artigo (Admin)"
+                    className="p-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-900 rounded-xl transition active:scale-95 shadow-xs"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
                 <button
                   className="px-4 py-2 text-xs font-semibold text-white bg-[#7C3AED] hover:bg-[#6D28D9] rounded-xl flex items-center gap-1"
                 >

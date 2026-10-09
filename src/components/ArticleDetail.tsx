@@ -19,7 +19,8 @@ import {
   Volume2,
   HardDrive,
   FileVideo,
-  FileAudio
+  FileAudio,
+  Trash2
 } from 'lucide-react';
 import { useBlog } from '../context/BlogContext';
 import { Post } from '../types';
@@ -41,7 +42,19 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ post, onBack }) =>
     openPostDetail,
     currentUser,
     loginWithGoogle,
+    isAdmin,
+    deletePost,
   } = useBlog();
+
+  const handleDeletePost = () => {
+    const confirmed = window.confirm(
+      `Tem a certeza de que deseja eliminar o artigo "${post.title}"?\n\nEsta ação removerá o artigo permanentemente da base de dados Firebase.`
+    );
+    if (confirmed) {
+      deletePost(post.id);
+      onBack();
+    }
+  };
 
   const isBookmarked = bookmarkedIds.includes(post.id);
   const postComments = comments[post.id] || [];
@@ -209,9 +222,22 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ post, onBack }) =>
           <span>Voltar aos artigos</span>
         </button>
 
-        <span className="px-3 py-1 text-xs font-semibold text-[#7C3AED] dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 rounded-lg">
-          {post.category}
-        </span>
+        <div className="flex items-center gap-3">
+          {isAdmin && (
+            <button
+              onClick={handleDeletePost}
+              title="Eliminar artigo (Admin)"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-900 rounded-lg transition active:scale-95 shadow-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Eliminar Artigo (Admin)</span>
+            </button>
+          )}
+
+          <span className="px-3 py-1 text-xs font-semibold text-[#7C3AED] dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 rounded-lg">
+            {post.category}
+          </span>
+        </div>
       </div>
 
       {/* Article Header */}
@@ -347,6 +373,17 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({ post, onBack }) =>
                 </>
               )}
             </button>
+
+            {isAdmin && (
+              <button
+                onClick={handleDeletePost}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900 transition active:scale-95 shadow-xs"
+                title="Eliminar artigo da base de dados (Admin)"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="text-xs">Eliminar</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
