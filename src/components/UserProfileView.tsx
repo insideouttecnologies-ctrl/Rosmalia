@@ -25,6 +25,7 @@ import {
 import { useBlog } from '../context/BlogContext';
 import { PostCard } from './PostCard';
 import { DriveMediaModal } from './DriveMediaModal';
+import { ProfilePhotoModal } from './ProfilePhotoModal';
 import { DriveMediaFile, normalizeDriveImageUrl } from '../services/googleDrive';
 
 interface UserProfileViewProps {
@@ -67,6 +68,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
 
   // Google Drive Avatar management
   const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [uploadPercent, setUploadPercent] = useState(0);
   const [driveSuccessNotice, setDriveSuccessNotice] = useState<string | null>(null);
@@ -235,22 +237,17 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
               </span>
             )}
 
-            {/* Quick Upload Avatar Button (Disponível para Todos: Leitores e Admin) */}
-            <label
-              className="absolute inset-0 bg-black/60 text-white rounded-3xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-center p-1.5"
-              title="Carregar nova foto de perfil personalizada (Google Drive ou Ficheiro)"
+            {/* Quick Upload / Customize Avatar Button */}
+            <button
+              type="button"
+              onClick={() => setIsPhotoModalOpen(true)}
+              className="absolute inset-0 bg-black/60 text-white rounded-3xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-center p-1.5 z-20"
+              title="Personalizar foto de perfil (Ficheiro, Avatares ou Link)"
             >
               <Camera className="w-5 h-5 mb-0.5 text-purple-200" />
               <span className="text-[10px] font-bold leading-tight">Mudar Foto</span>
-              <span className="text-[9px] text-purple-200 leading-tight">Drive / Ficheiro</span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarDriveUpload}
-                disabled={isUploadingAvatar}
-                className="hidden"
-              />
-            </label>
+              <span className="text-[9px] text-purple-200 leading-tight">Upload / Avatares</span>
+            </button>
           </div>
 
           <div className="space-y-1.5">
@@ -773,6 +770,16 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
               <p className="mt-1 text-[11px] text-slate-400">
                 Os links de partilha do Google Drive são convertidos automaticamente para visualização universal pública por todos os utilizadores.
               </p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPhotoModalOpen(true)}
+                  className="px-4 py-2 text-xs font-bold text-[#7C3AED] dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 rounded-xl transition flex items-center gap-2 border border-purple-200 dark:border-purple-800"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Abrir Galeria de Avatares & Upload de Ficheiro</span>
+                </button>
+              </div>
             </div>
 
             <button
@@ -783,6 +790,20 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
             </button>
           </form>
         </div>
+      )}
+
+      {/* Profile Photo Customization Modal */}
+      {currentUser && (
+        <ProfilePhotoModal
+          isOpen={isPhotoModalOpen}
+          onClose={() => setIsPhotoModalOpen(false)}
+          currentAvatar={currentUser.avatar}
+          userName={currentUser.name}
+          onSaveAvatar={(newUrl) => {
+            setEditAvatar(newUrl);
+            updateProfile({ avatar: newUrl });
+          }}
+        />
       )}
 
       {/* Google Drive Profile Pictures Modal */}

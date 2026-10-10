@@ -147,10 +147,12 @@ export interface WebRTCCallSession {
   callerId: string;
   callerName: string;
   callerAvatar: string;
+  callerTabId?: string;
   calleeId: string;
   calleeName: string;
   calleeAvatar?: string;
   roomCode?: string;
+  isSimulation?: boolean;
   status: 'ringing' | 'accepted' | 'declined' | 'missed' | 'ended';
   createdAt: number;
   expiresAt: number;

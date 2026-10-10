@@ -142,6 +142,68 @@ export const StartVideoCallModal: React.FC<StartVideoCallModalProps> = ({
     }
   };
 
+  const startSimulationCall = async () => {
+    setIsCalling(true);
+    try {
+      const callerId = currentUser?.id || `guest-${Date.now()}`;
+      const callerName = currentUser?.name || 'Visitante Lume';
+      const callerAvatar =
+        currentUser?.avatar ||
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80';
+
+      const callId = `call-simulated-${Date.now()}`;
+      const now = Date.now();
+
+      const newSession: WebRTCCallSession = {
+        id: callId,
+        callerId,
+        callerName,
+        callerAvatar,
+        calleeId: 'user-simulated-mariana',
+        calleeName: 'Mariana Costa (Modo Demonstração)',
+        calleeAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=350&q=80',
+        status: 'ringing',
+        isSimulation: true,
+        createdAt: now,
+        expiresAt: now + 16000,
+      };
+
+      await createCallSessionInFirebase(newSession);
+      onCallInitiated(newSession);
+      onClose();
+    } catch (err: any) {
+      alert(`Falha ao iniciar teste de chamada: ${err.message}`);
+    } finally {
+      setIsCalling(false);
+    }
+  };
+
+  const simulateIncomingCall = async () => {
+    try {
+      const now = Date.now();
+      const callId = `call-inbound-sim-${now}`;
+      const targetId = currentUser?.id || 'guest-user';
+      const newSession: WebRTCCallSession = {
+        id: callId,
+        callerId: 'user-mentor-sim',
+        callerName: 'Prof. António Carvalho (Orientador PAP)',
+        callerAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
+        calleeId: targetId,
+        calleeName: currentUser?.name || 'Utilizador',
+        calleeAvatar: currentUser?.avatar,
+        status: 'ringing',
+        isSimulation: true,
+        createdAt: now,
+        expiresAt: now + 16000,
+      };
+
+      await createCallSessionInFirebase(newSession);
+      onClose();
+    } catch (err: any) {
+      alert(`Erro ao simular chamada a receber: ${err.message}`);
+    }
+  };
+
   const startCallWithRoomCode = async () => {
     if (!customRoomCode.trim()) return;
 
@@ -405,6 +467,38 @@ export const StartVideoCallModal: React.FC<StartVideoCallModalProps> = ({
                   </div>
                 ))}
               </div>
+
+              {/* Quick Simulation & Testing Actions */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/5 to-purple-500/10 border border-purple-200 dark:border-purple-900/40 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#7C3AED] dark:text-purple-300" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Testar Chamada Agora (Demonstração & Loopback)
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                  Permite testar o vídeo, áudio, temporizador de 16 segundos e controlos mesmo sem outro utilizador online.
+                </p>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={startSimulationCall}
+                    disabled={isCalling}
+                    className="px-3 py-2 rounded-xl bg-purple-100 dark:bg-purple-950/70 text-[#7C3AED] dark:text-purple-300 hover:bg-purple-200 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Ligar a Mariana (Demo)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={simulateIncomingCall}
+                    className="px-3 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95"
+                  >
+                    <PhoneCall className="w-3.5 h-3.5" />
+                    <span>Simular Toque 16s</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -549,6 +643,24 @@ export const StartVideoCallModal: React.FC<StartVideoCallModalProps> = ({
                     <span>Parar Teste</span>
                   </button>
                 )}
+              </div>
+
+              {/* Instant Call Simulation Buttons */}
+              <div className="pt-2 border-t border-slate-100 dark:border-purple-950/60 flex gap-2">
+                <button
+                  type="button"
+                  onClick={startSimulationCall}
+                  className="flex-1 py-2 px-3 rounded-xl bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 text-[#7C3AED] dark:text-purple-300 text-xs font-bold border border-purple-200 dark:border-purple-800 transition"
+                >
+                  Demonstração em Direto (Com Mariana)
+                </button>
+                <button
+                  type="button"
+                  onClick={simulateIncomingCall}
+                  className="flex-1 py-2 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200 dark:border-indigo-800 transition"
+                >
+                  Testar Chamada a Receber (16s)
+                </button>
               </div>
             </div>
           )}

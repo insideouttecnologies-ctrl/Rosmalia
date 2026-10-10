@@ -14,6 +14,7 @@ import {
 } from '../types';
 import { initialCategories } from '../data/mockData';
 import { defaultCurriculumData } from '../data/defaultCurriculum';
+import { seedCategories, seedUsers } from '../services/databaseSeeds';
 import {
   signInWithGoogleDrive,
   disconnectGoogleDrive,
@@ -156,17 +157,18 @@ interface BlogContextType {
 const BlogContext = createContext<BlogContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  POSTS: 'lume_blog_posts_v3',
-  COMMENTS: 'lume_blog_comments_v3',
-  GALLERY: 'lume_blog_gallery_v3',
-  BOOKMARKS: 'lume_blog_bookmarks_v3',
+  POSTS: 'lume_blog_posts_v4',
+  COMMENTS: 'lume_blog_comments_v4',
+  GALLERY: 'lume_blog_gallery_v4',
+  CATEGORIES: 'lume_blog_categories_v4',
+  BOOKMARKS: 'lume_blog_bookmarks_v4',
   DARK_MODE: 'lume_blog_darkmode_v1',
-  CURRENT_USER: 'lume_blog_current_user_v3',
-  USERS: 'lume_blog_users_v3',
-  LIKED_POSTS: 'lume_blog_liked_posts_v3',
-  READ_HISTORY: 'lume_blog_read_history_v3',
-  BANNER_ITEMS: 'lume_blog_banner_items_v3',
-  CURRICULUM: 'lume_blog_curriculum_v2',
+  CURRENT_USER: 'lume_blog_current_user_v4',
+  USERS: 'lume_blog_users_v4',
+  LIKED_POSTS: 'lume_blog_liked_posts_v4',
+  READ_HISTORY: 'lume_blog_read_history_v4',
+  BANNER_ITEMS: 'lume_blog_banner_items_v4',
+  CURRICULUM: 'lume_blog_curriculum_v4',
 };
 
 export const initialDefaultBannerItems: BannerItem[] = [
@@ -219,35 +221,7 @@ export const ADMIN_USER: User = {
   readHistoryIds: [],
 };
 
-const initialDefaultUsers: User[] = [
-  ADMIN_USER,
-  {
-    id: 'user-admin',
-    name: 'Afonso Lume',
-    email: 'admin@lume.pt',
-    password: 'password123',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
-    bio: 'Criador e autor principal do Lume. Escrevendo sobre foco, hábitos e minimalismo.',
-    role: 'admin',
-    createdAt: '15 de Agosto, 2026',
-    savedPostIds: [],
-    likedPostIds: [],
-    readHistoryIds: [],
-  },
-  {
-    id: 'user-reader',
-    name: 'Mariana Silva',
-    email: 'mariana@lume.pt',
-    password: 'password123',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80',
-    bio: 'Leitora assídua e entusiasta de desenvolvimento pessoal e tecnologia.',
-    role: 'reader',
-    createdAt: '01 de Setembro, 2026',
-    savedPostIds: [],
-    likedPostIds: [],
-    readHistoryIds: [],
-  },
-];
+const initialDefaultUsers: User[] = seedUsers;
 
 export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [posts, setPosts] = useState<Post[]>(() => {
@@ -255,7 +229,9 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem(STORAGE_KEYS.POSTS);
       if (saved) {
         const parsed: Post[] = JSON.parse(saved);
-        return parsed.filter(p => !['post-1', 'post-2', 'post-3', 'post-4', 'post-5'].includes(p.id));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
       }
     } catch (e) {
       console.error(e);
@@ -263,14 +239,13 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return [];
   });
 
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [categories, setCategories] = useState<Category[]>(seedCategories);
 
   const [gallery, setGallery] = useState<Photo[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.GALLERY);
       if (saved) {
-        const parsed: Photo[] = JSON.parse(saved);
-        return parsed.filter(ph => !['photo-1', 'photo-2', 'photo-3', 'photo-4', 'photo-5', 'photo-6'].includes(ph.id));
+        return JSON.parse(saved);
       }
     } catch (e) {
       console.error(e);
@@ -472,10 +447,9 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 2. Real-time listener for Posts
     const unsubPosts = listenFirebasePosts((fbPosts) => {
-      const clean = (fbPosts || []).filter(
-        (p) => !['post-1', 'post-2', 'post-3', 'post-4', 'post-5'].includes(p.id)
-      );
-      setPosts(clean);
+      if (fbPosts) {
+        setPosts(fbPosts);
+      }
     });
 
     // 3. Real-time listener for Comments
@@ -485,10 +459,9 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 4. Real-time listener for Gallery Photos
     const unsubGallery = listenFirebaseGallery((fbGallery) => {
-      const clean = (fbGallery || []).filter(
-        (ph) => !['photo-1', 'photo-2', 'photo-3', 'photo-4', 'photo-5', 'photo-6'].includes(ph.id)
-      );
-      setGallery(clean);
+      if (fbGallery) {
+        setGallery(fbGallery);
+      }
     });
 
     // 5. Real-time listener for Users
@@ -769,6 +742,23 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updated : u)));
     // Persist to Firebase Realtime Database
     persistUserToFirebase(updated);
+
+    // If updating avatar, synchronize to curriculum profile avatar as well
+    if (cleanUpdates.avatar) {
+      setCurriculum((prev) => {
+        if (!prev || !prev.profile) return prev;
+        const updatedCurr = {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            avatarUrl: cleanUpdates.avatar!,
+          },
+        };
+        localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(updatedCurr));
+        saveCurriculumToFirebase(updatedCurr).catch(console.error);
+        return updatedCurr;
+      });
+    }
   };
 
   const toggleBookmark = (postId: string) => {

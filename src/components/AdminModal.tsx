@@ -68,13 +68,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   // Post form state
   const [postTitle, setPostTitle] = useState('');
   const [postExcerpt, setPostExcerpt] = useState('');
-  const [postCategory, setPostCategory] = useState('Tecnologia');
+  const [postCategory, setPostCategory] = useState('Gestão Empresarial');
   const [postReadTime, setPostReadTime] = useState('5 min de leitura');
   const [postContent, setPostContent] = useState('');
   const [postCoverImage, setPostCoverImage] = useState(
-    'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80'
+    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80'
   );
-  const [postTags, setPostTags] = useState('Inovação, Ideias');
+  const [postTags, setPostTags] = useState('Gestão, PAP, Finanças');
   const [postIsFeatured, setPostIsFeatured] = useState(false);
 
   // Media Type for Post: image, audio, video
@@ -87,11 +87,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   // Photo form state
   const [photoTitle, setPhotoTitle] = useState('');
   const [photoCaption, setPhotoCaption] = useState('');
-  const [photoCategory, setPhotoCategory] = useState('Natureza');
+  const [photoCategory, setPhotoCategory] = useState('Projetos');
   const [photoImageUrl, setPhotoImageUrl] = useState(
-    'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80'
+    'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1200&q=80'
   );
-  const [photoLocation, setPhotoLocation] = useState('Sintra, Portugal');
+  const [photoLocation, setPhotoLocation] = useState('Lisboa, Portugal');
   const [photoCamera, setPhotoCamera] = useState('Sony Alpha 7 IV');
   const [photoLens, setPhotoLens] = useState('FE 24-70mm f/2.8 GM II');
   const [photoAperture, setPhotoAperture] = useState('f/2.8');

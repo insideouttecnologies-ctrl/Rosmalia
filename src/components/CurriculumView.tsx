@@ -28,15 +28,19 @@ import {
   Share2,
   Layers,
   ChevronRight,
-  Info
+  Info,
+  Camera
 } from 'lucide-react';
 import { useBlog } from '../context/BlogContext';
 import { CurriculumItem, CurriculumProfile } from '../types';
+import { ProfilePhotoModal } from './ProfilePhotoModal';
 
 export const CurriculumView: React.FC = () => {
   const {
     curriculum,
     isAdmin,
+    currentUser,
+    updateProfile,
     updateCurriculumProfile,
     addCurriculumItem,
     updateCurriculumItem,
@@ -49,6 +53,7 @@ export const CurriculumView: React.FC = () => {
   // Active category filter tab ('all' or specific category)
   const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>('all');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
 
   // Modal states for Admin
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
@@ -325,7 +330,7 @@ export const CurriculumView: React.FC = () => {
 
         <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
           {/* Avatar with status ring */}
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 group">
             <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-3xl overflow-hidden ring-4 ring-purple-100 dark:ring-purple-950/80 shadow-2xl bg-slate-100 dark:bg-slate-800">
               <img
                 src={
@@ -341,8 +346,19 @@ export const CurriculumView: React.FC = () => {
                 }}
               />
             </div>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsPhotoModalOpen(true)}
+                className="no-print absolute inset-0 bg-black/60 rounded-3xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition cursor-pointer p-2 text-center z-10"
+                title="Alterar Foto de Perfil do Currículo"
+              >
+                <Camera className="w-5 h-5 mb-1 text-purple-200" />
+                <span className="text-[10px] font-bold">Mudar Foto</span>
+              </button>
+            )}
             {profile.statusBadge && (
-              <span className="absolute -bottom-2 -right-2 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-md flex items-center gap-1">
+              <span className="absolute -bottom-2 -right-2 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-md flex items-center gap-1 z-20">
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                 <span>Ativo</span>
               </span>
@@ -1036,6 +1052,21 @@ export const CurriculumView: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+      {/* Profile Photo Customization Modal for Curriculum */}
+      {isAdmin && (
+        <ProfilePhotoModal
+          isOpen={isPhotoModalOpen}
+          onClose={() => setIsPhotoModalOpen(false)}
+          currentAvatar={profile.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=350&q=80'}
+          userName={profile.fullName}
+          onSaveAvatar={(newUrl) => {
+            updateCurriculumProfile({ avatarUrl: newUrl });
+            if (currentUser) {
+              updateProfile({ avatar: newUrl });
+            }
+          }}
+        />
       )}
     </div>
   );

@@ -28,12 +28,13 @@ export const auth = getAuth(app);
 const rtdbUrl = firebaseConfig.databaseURL || 'https://gen-lang-client-0321247623-default-rtdb.firebaseio.com';
 export const rtdb = getDatabase(app, rtdbUrl);
 
+import { seedAllDatabaseData } from './databaseSeeds';
+
 /**
- * Executes complete database migrations and admin setup for Firebase Realtime Database:
+ * Executes complete database migrations and seeding for Firebase Realtime Database:
  * 1. Ensures Admin User (insideouttecnologies@gmail.com) exists with password and admin role.
- * 2. Seeds production category entities if missing.
- * 3. Cleanses any legacy static mock IDs.
- * 4. Writes migration audit record at /system/migrations.
+ * 2. Seeds real dynamic categories, posts, gallery, comments, and banner items.
+ * 3. Writes migration audit record at /system/migrations.
  */
 export const runDatabaseMigrations = async (force: boolean = false): Promise<{ success: boolean; message: string; timestamp: string }> => {
   const timestamp = new Date().toISOString();
@@ -43,13 +44,13 @@ export const runDatabaseMigrations = async (force: boolean = false): Promise<{ s
     // 1. Ensure Admin User record exists in Firebase Realtime Database
     const adminUser: User = {
       id: 'user-admin-main',
-      name: 'Admin InsideOut',
+      name: 'Mariana Costa',
       email: adminUserEmail,
       password: 'adminPassword123',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-      bio: 'Administrador e autor principal da plataforma Lume.',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=350&q=80',
+      bio: 'Estudante finalista do 13º ano de Gestão Empresarial | Administradora da plataforma.',
       role: 'admin',
-      createdAt: '06 de Outubro, 2026',
+      createdAt: '01 de Setembro, 2026',
       savedPostIds: [],
       likedPostIds: [],
       readHistoryIds: [],
@@ -57,31 +58,12 @@ export const runDatabaseMigrations = async (force: boolean = false): Promise<{ s
 
     await set(ref(rtdb, `users/${adminUser.id}`), adminUser);
 
-    // 2. Seed clean categories if missing or forced
-    const categoriesSnapshot = await get(ref(rtdb, 'categories'));
-    if (!categoriesSnapshot.exists() || force) {
-      const categoriesMap: Record<string, Category> = {};
-      initialCategories.forEach((c) => {
-        categoriesMap[c.id] = c;
-      });
-      await set(ref(rtdb, 'categories'), categoriesMap);
-    }
+    // 2. Populate complete dynamic seeds in Firebase
+    await seedAllDatabaseData(force);
 
-    // 3. Purge legacy static mock items from Firebase to ensure production cleanliness
-    const mockPostIds = ['post-1', 'post-2', 'post-3', 'post-4', 'post-5'];
-    for (const pid of mockPostIds) {
-      await remove(ref(rtdb, `posts/${pid}`)).catch(() => {});
-      await remove(ref(rtdb, `comments/${pid}`)).catch(() => {});
-    }
-
-    const mockPhotoIds = ['photo-1', 'photo-2', 'photo-3', 'photo-4', 'photo-5', 'photo-6'];
-    for (const phid of mockPhotoIds) {
-      await remove(ref(rtdb, `gallery/${phid}`)).catch(() => {});
-    }
-
-    // 4. Record migration watermark
+    // 3. Record migration watermark
     await set(ref(rtdb, 'system/migrations'), {
-      version: 'v2026.10.06_prod_cleanup',
+      version: 'v2026.10.10_gestao_empresarial_seeds',
       executedAt: timestamp,
       status: 'applied',
       adminEmail: adminUserEmail,
@@ -90,7 +72,7 @@ export const runDatabaseMigrations = async (force: boolean = false): Promise<{ s
 
     return {
       success: true,
-      message: 'Migrations executadas com sucesso! Base de dados limpa, admin configurado e registo de migração gravado.',
+      message: 'Base de dados semeada com sucesso! Artigos de Gestão Empresarial, galeria, comentários e utilizadores ativos.',
       timestamp,
     };
   } catch (err: any) {

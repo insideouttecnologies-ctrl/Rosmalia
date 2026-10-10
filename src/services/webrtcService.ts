@@ -23,13 +23,31 @@ export const optimizeSdpForVoice = (sdp: string): string => {
   return sdp;
 };
 
+export const getBrowserTabId = (): string => {
+  if (typeof window === 'undefined') return 'server-tab';
+  try {
+    let tabId = sessionStorage.getItem('lume_webrtc_tab_id');
+    if (!tabId) {
+      tabId = `tab-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      sessionStorage.setItem('lume_webrtc_tab_id', tabId);
+    }
+    return tabId;
+  } catch (e) {
+    return `tab-${Math.random().toString(36).substring(2, 8)}`;
+  }
+};
+
 /**
  * Creates a new WebRTC Call in Firebase Realtime Database
  */
 export const createCallSessionInFirebase = async (session: WebRTCCallSession): Promise<void> => {
   try {
+    const finalSession = {
+      ...session,
+      callerTabId: session.callerTabId || getBrowserTabId(),
+    };
     const callRef = ref(rtdb, `calls/${session.id}`);
-    await set(callRef, session);
+    await set(callRef, finalSession);
   } catch (error) {
     console.error('Erro ao criar sessão de chamada WebRTC no Firebase:', error);
     throw error;
@@ -129,10 +147,12 @@ export const listenCallSessionInFirebase = (
 export const listenIncomingCallsForUser = (
   userId: string,
   userEmail: string,
-  callback: (call: WebRTCCallSession | null) => void
+  callbackOrTabId: string | ((call: WebRTCCallSession | null) => void),
+  maybeCallback?: (call: WebRTCCallSession | null) => void
 ): (() => void) => {
+  const currentTabId = typeof callbackOrTabId === 'string' ? callbackOrTabId : getBrowserTabId();
+  const callback = typeof callbackOrTabId === 'function' ? callbackOrTabId : (maybeCallback || (() => {}));
   const callsRef = ref(rtdb, 'calls');
-  const now = Date.now();
 
   const listener = onValue(callsRef, (snapshot) => {
     if (!snapshot.exists()) {
@@ -144,16 +164,40 @@ export const listenIncomingCallsForUser = (
     const activeIncoming = Object.values(allCalls).find((call) => {
       // Must be ringing status
       if (call.status !== 'ringing') return false;
-      // Must not be expired (16-second rule with generous 10s buffer for clock drift)
-      if (call.expiresAt && Date.now() > call.expiresAt + 10000) return false;
-      // Target matches this user
-      const matchesCallee =
-        (call.calleeId && call.calleeId === userId) ||
-        (call.calleeId && call.calleeId.toLowerCase() === userEmail.toLowerCase()) ||
-        (call.calleeName && call.calleeName.toLowerCase() === userEmail.toLowerCase());
+      // Must not be expired (generous 15s buffer for network latency)
+      if (call.expiresAt && Date.now() > call.expiresAt + 15000) return false;
 
-      // Caller cannot call oneself
-      const isNotSelf = call.callerId !== userId && call.callerId !== userEmail;
+      // Caller cannot ring oneself in the EXACT same tab
+      if (call.callerTabId && currentTabId && call.callerTabId === currentTabId) {
+        return false;
+      }
+
+      const uid = (userId || '').toLowerCase();
+      const uEmail = (userEmail || '').toLowerCase();
+      const calleeId = (call.calleeId || '').toLowerCase();
+      const calleeName = (call.calleeName || '').toLowerCase();
+
+      // Check if this call targets the user
+      const isDirectMatch =
+        (call.calleeId && call.calleeId === userId) ||
+        (calleeId && calleeId === uEmail) ||
+        (calleeName && calleeName === uEmail) ||
+        (calleeName && calleeName === uid);
+
+      // Check if call targets Admin/Mariana
+      const isAdminMatch =
+        (uid === 'user-admin-main' || uEmail === 'insideouttecnologies@gmail.com') &&
+        (calleeId === 'user-admin-main' || calleeId === 'user-mariana-costa' || calleeId === 'insideouttecnologies@gmail.com');
+
+      // Check if call targets Guest/Visitor
+      const isGuestMatch =
+        (uid.startsWith('guest') || uid === 'user-visitor-simulated' || uEmail.startsWith('guest')) &&
+        (calleeId.startsWith('guest') || calleeId === 'user-visitor-simulated' || calleeId === 'guest-user');
+
+      const matchesCallee = isDirectMatch || isAdminMatch || isGuestMatch;
+
+      // Caller cannot call oneself unless in different tabs for testing
+      const isNotSelf = call.callerTabId ? call.callerTabId !== currentTabId : (call.callerId !== userId && call.callerId !== userEmail);
 
       return matchesCallee && isNotSelf;
     });

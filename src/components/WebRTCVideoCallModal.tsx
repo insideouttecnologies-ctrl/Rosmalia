@@ -185,13 +185,17 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
 
   const cleanupListenersRef = useRef<(() => void)[]>([]);
 
-  // 1. Initial 16-Second Outgoing Countdown for Caller
+  // 1. Initial Countdown for Caller (16s for direct calls, 10 min for room codes)
+  const isRoomCall = !!session.roomCode || session.id.startsWith('call-room-');
+
   useEffect(() => {
     if (!isCaller || callState !== 'ringing') return;
 
-    ringtone.startRinging();
+    if (!isRoomCall) {
+      ringtone.startRinging();
+    }
     const startTime = Date.now();
-    const duration = 16000;
+    const duration = isRoomCall ? 600000 : 16000; // 10 minutes for rooms, 16 seconds for direct contact ringing
 
     const timer = setInterval(() => {
       const elapsed = Date.now() - startTime;
@@ -202,7 +206,7 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
       if (leftMs <= 0) {
         clearInterval(timer);
         ringtone.stopRinging();
-        setStatusMessage('Chamada não atendida: tempo limite de 16 segundos esgotado.');
+        setStatusMessage(isRoomCall ? 'Tempo limite da sala esgotado (10 minutos).' : 'Chamada não atendida: tempo limite de 16 segundos esgotado.');
         setCallState('missed');
         updateCallSessionInFirebase(session.id, { status: 'missed' });
       }
@@ -212,7 +216,7 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
       clearInterval(timer);
       ringtone.stopRinging();
     };
-  }, [isCaller, session.id, callState]);
+  }, [isCaller, session.id, callState, isRoomCall]);
 
   // 2. Call Duration counter once connected
   useEffect(() => {
@@ -467,6 +471,34 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
         );
         cleanupListenersRef.current.push(stopIceListener);
 
+        // Special handling for Demonstration / Simulation Mode calls
+        if (session.isSimulation || session.calleeId.includes('simulated')) {
+          const simTimer = setTimeout(() => {
+            if (!isMounted) return;
+            ringtone.stopRinging();
+            setCallState('connected');
+            setStatusMessage('Ligação WebRTC Ativa (Modo Demonstração / Teste)');
+
+            const partnerName = isCaller ? (session.calleeName || 'Mariana Costa') : (session.callerName || 'Membro Lume');
+            const simVideo = createSyntheticVideoTrack(partnerName);
+            const simAudio = createSyntheticAudioTrack();
+            if (simVideo) remoteStream.addTrack(simVideo);
+            if (simAudio) remoteStream.addTrack(simAudio);
+
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = remoteStream;
+              remoteVideoRef.current.muted = true;
+              remoteVideoRef.current.play().catch(() => {});
+            }
+            if (remoteAudioRef.current) {
+              remoteAudioRef.current.srcObject = remoteStream;
+              remoteAudioRef.current.play().catch(() => {});
+            }
+          }, 2000);
+
+          cleanupListenersRef.current.push(() => clearTimeout(simTimer));
+        }
+
         // G. Signaling Handshake (Offer / Answer)
         if (isCaller) {
           // Caller generates SDP Offer
@@ -517,29 +549,31 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
 
           const answerOffer = async (offerData: { type: RTCSdpType; sdp: string }) => {
             if (answered) return;
-            answered = true;
             try {
-              if (pc.signalingState === 'stable') {
-                await pc.setRemoteDescription(new RTCSessionDescription(offerData));
-                await drainCandidateQueue();
+              if (pc.signalingState !== 'stable') {
+                return;
+              }
+              answered = true;
+              await pc.setRemoteDescription(new RTCSessionDescription(offerData));
+              await drainCandidateQueue();
 
-                const answer = await pc.createAnswer({
-                  offerToReceiveAudio: true,
-                  offerToReceiveVideo: true,
-                });
-                await pc.setLocalDescription(answer);
+              const answer = await pc.createAnswer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true,
+              });
+              await pc.setLocalDescription(answer);
 
-                await updateCallSessionInFirebase(session.id, {
-                  status: 'accepted',
-                  answer: { type: 'answer', sdp: answer.sdp || '' },
-                });
+              await updateCallSessionInFirebase(session.id, {
+                status: 'accepted',
+                answer: { type: 'answer', sdp: answer.sdp || '' },
+              });
 
-                if (isMounted) {
-                  setCallState('connected');
-                  setStatusMessage('Ligação WebRTC Estabelecida');
-                }
+              if (isMounted) {
+                setCallState('connected');
+                setStatusMessage('Ligação WebRTC Estabelecida');
               }
             } catch (err: any) {
+              answered = false;
               console.error('Erro ao responder à oferta WebRTC:', err);
             }
           };
@@ -871,7 +905,7 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
           </div>
         )}
 
-        {/* Overlay when Call is Ringing / Awaiting 16-Second Answer */}
+        {/* Overlay when Call is Ringing / Awaiting Answer */}
         {callState === 'ringing' && isCaller && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center space-y-5 bg-black/60 backdrop-blur-sm">
             <div className="relative">
@@ -887,20 +921,58 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
               />
             </div>
 
-            <div className="space-y-1">
-              <h2 className="text-2xl font-black text-white">A chamar {remotePeerName}...</h2>
-              <p className="text-sm text-purple-200">
-                O destinatário tem <span className="font-bold text-amber-300">16 segundos</span> para aceitar.
-              </p>
-            </div>
+            {isRoomCall ? (
+              <div className="space-y-3 max-w-md">
+                <div className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-purple-500/30 border border-purple-400/40 text-purple-200">
+                  Sala de Vídeo P2P Ativa
+                </div>
+                <h2 className="text-2xl font-black text-white">
+                  Código da Sala: {session.roomCode || session.id.replace('call-room-', '')}
+                </h2>
+                <p className="text-xs text-purple-200/90 leading-relaxed">
+                  Aguardando o segundo participante entrar. Pode partilhar o código ou enviar o link direto.
+                </p>
 
-            {/* 16-second countdown timer for the caller */}
-            <div className="px-5 py-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/40 backdrop-blur-md flex items-center gap-3">
-              <Clock className="w-5 h-5 text-amber-400 animate-pulse" />
-              <span className="text-base font-extrabold text-amber-200">
-                Aguardando resposta: {callerRemainingSecs}s restantes
-              </span>
-            </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const roomCode = session.roomCode || session.id.replace('call-room-', '');
+                      const directUrl = `${window.location.origin}/?room=${roomCode}`;
+                      navigator.clipboard.writeText(directUrl);
+                      alert(`Link direto copiado para a área de transferência:\n${directUrl}\n\nAbra numa segunda aba ou envie para testar!`);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center gap-2"
+                  >
+                    <span>📋 Copiar Link de Acesso Direto</span>
+                  </button>
+                </div>
+
+                <div className="px-4 py-2 rounded-xl bg-purple-950/60 border border-purple-500/30 inline-flex items-center gap-2 text-xs font-semibold text-purple-200">
+                  <Clock className="w-4 h-4 text-purple-400 animate-pulse" />
+                  <span>
+                    Sala ativa por: {Math.floor(callerRemainingSecs / 60)}m {callerRemainingSecs % 60}s
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-black text-white">A chamar {remotePeerName}...</h2>
+                  <p className="text-sm text-purple-200">
+                    O destinatário tem <span className="font-bold text-amber-300">16 segundos</span> para aceitar.
+                  </p>
+                </div>
+
+                {/* 16-second countdown timer for direct 1-to-1 caller */}
+                <div className="px-5 py-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/40 backdrop-blur-md flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-amber-400 animate-pulse" />
+                  <span className="text-base font-extrabold text-amber-200">
+                    Aguardando resposta: {callerRemainingSecs}s restantes
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         )}
 

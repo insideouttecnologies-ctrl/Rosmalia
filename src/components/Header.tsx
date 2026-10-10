@@ -16,9 +16,11 @@ import {
   ShieldCheck,
   HardDrive,
   Video,
-  FileText
+  FileText,
+  Camera
 } from 'lucide-react';
 import { ViewMode } from '../types';
+import { ProfilePhotoModal } from './ProfilePhotoModal';
 
 interface HeaderProps {
   onOpenAdmin: () => void;
@@ -46,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
     isAdmin,
     logout,
     loginWithGoogle,
+    updateProfile,
     isDriveConnected,
     googleUser,
   } = useBlog();
@@ -53,6 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [isProfilePhotoModalOpen, setIsProfilePhotoModalOpen] = useState(false);
 
   const handleNavClick = (view: ViewMode) => {
     setActiveView(view);
@@ -295,6 +299,17 @@ export const Header: React.FC<HeaderProps> = ({
                     >
                       <Bookmark className="w-3.5 h-3.5 text-purple-600" />
                       <span>Minhas Atividades & Favoritos</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        setIsProfilePhotoModalOpen(true);
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-950/50 flex items-center gap-2 transition"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-[#7C3AED]" />
+                      <span>Alterar Foto de Perfil</span>
                     </button>
 
                     {isAdmin && onOpenDrive && (
@@ -544,6 +559,19 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
       </div>
+
+      {/* Profile Photo Customization Modal */}
+      {currentUser && (
+        <ProfilePhotoModal
+          isOpen={isProfilePhotoModalOpen}
+          onClose={() => setIsProfilePhotoModalOpen(false)}
+          currentAvatar={currentUser.avatar}
+          userName={currentUser.name}
+          onSaveAvatar={(newUrl) => {
+            updateProfile({ avatar: newUrl });
+          }}
+        />
+      )}
     </header>
   );
 };
