@@ -3,7 +3,7 @@ import { useBlog } from '../context/BlogContext';
 import { Sparkles, Heart, ArrowUp } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { setActiveView, setSelectedCategory, setSelectedPost, isFirebaseSyncing } = useBlog();
+  const { setActiveView, setSelectedCategory, setSelectedPost, isFirebaseSyncing, branding } = useBlog();
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -22,19 +22,43 @@ export const Footer: React.FC = () => {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-[#7C3AED] dark:text-purple-300">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                <path d="M12 2C12 2 10 7 10 10C10 11.66 11.34 13 13 13C14.66 13 16 11.66 16 10C16 7 12 2 12 2Z" />
-                <path d="M8.5 7.5C8.5 7.5 5 10 5 13C5 15.21 6.79 17 9 17C10.15 17 11.19 16.52 11.92 15.74C11.35 14.9 11 13.9 11 12.8C11 10.6 12.5 8.7 8.5 7.5Z" opacity="0.85" />
-                <path d="M15.5 7.5C11.5 8.7 13 10.6 13 12.8C13 13.9 12.65 14.9 12.08 15.74C12.81 16.52 13.85 17 15 17C17.21 17 19 15.21 19 13C19 10 15.5 7.5 15.5 7.5Z" opacity="0.85" />
-              </svg>
-            </div>
+            {branding?.logoUrl ? (
+              <img
+                src={branding.logoUrl}
+                alt={branding.siteName || 'Lume'}
+                className="w-8 h-8 rounded-lg object-contain bg-purple-50 dark:bg-purple-950/60 p-0.5 border border-purple-200/60 dark:border-purple-800"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-[#7C3AED] dark:text-purple-300">
+                {(!branding?.logoPreset || branding.logoPreset === 'lotus-sprout') && (
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                    <path d="M12 2C12 2 10 7 10 10C10 11.66 11.34 13 13 13C14.66 13 16 11.66 16 10C16 7 12 2 12 2Z" />
+                    <path d="M8.5 7.5C8.5 7.5 5 10 5 13C5 15.21 6.79 17 9 17C10.15 17 11.19 16.52 11.92 15.74C11.35 14.9 11 13.9 11 12.8C11 10.6 12.5 8.7 8.5 7.5Z" opacity="0.85" />
+                    <path d="M15.5 7.5C11.5 8.7 13 10.6 13 12.8C13 13.9 12.65 14.9 12.08 15.74C12.81 16.52 13.85 17 15 17C17.21 17 19 15.21 19 13C19 10 15.5 7.5 15.5 7.5Z" opacity="0.85" />
+                  </svg>
+                )}
+                {branding?.logoPreset === 'modern-l' && (
+                  <span className="text-lg font-black">L</span>
+                )}
+                {branding?.logoPreset === 'minimal-circle' && (
+                  <div className="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                  </div>
+                )}
+                {branding?.logoPreset === 'geometric-prism' && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5">
+                    <polygon points="12 2 2 22 22 22" />
+                    <line x1="12" y1="2" x2="12" y2="22" />
+                  </svg>
+                )}
+              </div>
+            )}
             <div>
               <span className="font-bold text-slate-900 dark:text-white text-lg">
-                Lume
+                {branding?.siteName || 'Lume'}
               </span>
               <span className="text-xs text-slate-400 dark:text-slate-500 ml-2">
-                O espaço das boas ideias
+                {branding?.tagline || 'O espaço das boas ideias'}
               </span>
             </div>
           </div>

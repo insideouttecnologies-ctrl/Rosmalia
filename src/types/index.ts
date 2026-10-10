@@ -167,3 +167,11 @@ export interface WebRTCCallSession {
   callerCandidates?: Record<string, { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null }>;
   calleeCandidates?: Record<string, { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null }>;
 }
+
+export interface SystemBranding {
+  siteName: string;
+  tagline: string;
+  logoUrl?: string;
+  logoPreset?: 'lotus-sprout' | 'modern-l' | 'minimal-circle' | 'geometric-prism';
+  accentColor?: string;
+}

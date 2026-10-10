@@ -17,7 +17,7 @@ import {
   update,
 } from 'firebase/database';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Post, Comment, Photo, Category, User, BannerItem, DigitalCurriculum } from '../types';
+import { Post, Comment, Photo, Category, User, BannerItem, DigitalCurriculum, SystemBranding } from '../types';
 import { initialCategories } from '../data/mockData';
 
 // Ensure Firebase App is initialized once
@@ -522,5 +522,38 @@ export const listenCurriculumInFirebase = (
 
   return () => {
     off(curriculumRef, 'value', listener);
+  };
+};
+
+/**
+ * Saves or updates System Branding & Logo settings in Firebase Realtime Database
+ */
+export const saveSystemBrandingToFirebase = async (branding: SystemBranding): Promise<void> => {
+  try {
+    const brandingRef = ref(rtdb, 'system/branding');
+    await set(brandingRef, branding);
+  } catch (error) {
+    console.error('Erro ao guardar branding no Firebase:', error);
+    throw error;
+  }
+};
+
+/**
+ * Listens to System Branding & Logo in real-time
+ */
+export const listenSystemBrandingInFirebase = (
+  callback: (branding: SystemBranding | null) => void
+): (() => void) => {
+  const brandingRef = ref(rtdb, 'system/branding');
+  const listener = onValue(brandingRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback(snapshot.val());
+    } else {
+      callback(null);
+    }
+  });
+
+  return () => {
+    off(brandingRef, 'value', listener);
   };
 };

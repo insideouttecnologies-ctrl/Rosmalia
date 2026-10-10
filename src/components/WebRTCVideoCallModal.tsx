@@ -472,14 +472,20 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
         cleanupListenersRef.current.push(stopIceListener);
 
         // Special handling for Demonstration / Simulation Mode calls
-        if (session.isSimulation || session.calleeId.includes('simulated')) {
+        if (
+          session.isSimulation ||
+          (session.calleeId && session.calleeId.includes('sim')) ||
+          (session.callerId && session.callerId.includes('sim'))
+        ) {
           const simTimer = setTimeout(() => {
             if (!isMounted) return;
             ringtone.stopRinging();
             setCallState('connected');
             setStatusMessage('Ligação WebRTC Ativa (Modo Demonstração / Teste)');
 
-            const partnerName = isCaller ? (session.calleeName || 'Mariana Costa') : (session.callerName || 'Membro Lume');
+            const partnerName = isCaller
+              ? session.calleeName || 'Mariana Costa'
+              : session.callerName || 'Prof. António Carvalho';
             const simVideo = createSyntheticVideoTrack(partnerName);
             const simAudio = createSyntheticAudioTrack();
             if (simVideo) remoteStream.addTrack(simVideo);
@@ -494,7 +500,7 @@ export const WebRTCVideoCallModal: React.FC<WebRTCVideoCallModalProps> = ({
               remoteAudioRef.current.srcObject = remoteStream;
               remoteAudioRef.current.play().catch(() => {});
             }
-          }, 2000);
+          }, 1500);
 
           cleanupListenersRef.current.push(() => clearTimeout(simTimer));
         }

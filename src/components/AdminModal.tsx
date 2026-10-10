@@ -16,7 +16,8 @@ import {
   Database,
   Trash2,
   Search,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import { useBlog } from '../context/BlogContext';
 import { DriveMediaModal } from './DriveMediaModal';
@@ -25,7 +26,7 @@ import { DriveMediaFile } from '../services/googleDrive';
 interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab?: 'post' | 'photo' | 'manage';
+  initialTab?: 'post' | 'photo' | 'manage' | 'branding';
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({
@@ -46,12 +47,23 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     isFirebaseSyncing,
     posts,
     deletePost,
+    branding,
+    updateBranding,
+    resetBrandingToDefault,
   } = useBlog();
 
-  const [activeTab, setActiveTab] = useState<'post' | 'photo' | 'manage'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'post' | 'photo' | 'manage' | 'branding'>(initialTab);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
   const [manageFilter, setManageFilter] = useState('');
+
+  // Branding Form State inside Admin
+  const [brandSiteName, setBrandSiteName] = useState(branding?.siteName || 'Lume');
+  const [brandTagline, setBrandTagline] = useState(branding?.tagline || 'O espaço das boas ideias');
+  const [brandLogoUrl, setBrandLogoUrl] = useState(branding?.logoUrl || '');
+  const [brandLogoPreset, setBrandLogoPreset] = useState<'lotus-sprout' | 'modern-l' | 'minimal-circle' | 'geometric-prism'>(
+    branding?.logoPreset || 'lotus-sprout'
+  );
 
   const handleRunSeeder = async () => {
     setIsSeeding(true);
@@ -368,6 +380,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300">
                 {posts.length}
               </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('branding')}
+              className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition ${
+                activeTab === 'branding'
+                  ? 'border-[#7C3AED] text-[#7C3AED] dark:text-purple-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-[#7C3AED]" />
+              <span>Logótipo & Marca</span>
             </button>
           </div>
 
@@ -905,6 +929,313 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     Ainda não existem artigos publicados.
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: BRANDING & SYSTEM LOGO */}
+          {activeTab === 'branding' && (
+            <div className="p-6 space-y-6">
+              {/* Header explanation */}
+              <div className="bg-purple-50 dark:bg-purple-950/40 p-4 rounded-2xl border border-purple-200 dark:border-purple-900/40 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center text-[#7C3AED] dark:text-purple-300 shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Identidade Visual & Logótipo Oficial
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Defina o logótipo do sistema (upload de imagem ou ícone estilizado), nome da marca e slogan. Sincronizado em tempo real na base de dados.
+                  </p>
+                </div>
+              </div>
+
+              {/* Live Preview Card */}
+              <div className="bg-slate-50 dark:bg-[#1f1b33] p-4 rounded-2xl border border-slate-200/80 dark:border-purple-900/40">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                  Pré-visualização do Cabeçalho & Rodapé
+                </span>
+                <div className="bg-white dark:bg-[#12101e] p-4 rounded-xl shadow-xs border border-purple-100/80 dark:border-purple-950/40 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {brandLogoUrl ? (
+                      <img
+                        src={brandLogoUrl}
+                        alt={brandSiteName}
+                        className="w-11 h-11 rounded-xl object-contain shadow-xs bg-white dark:bg-slate-900 p-0.5 border border-purple-100 dark:border-purple-900"
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-[#7C3AED] dark:text-purple-300 shadow-sm">
+                        {brandLogoPreset === 'lotus-sprout' && (
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                            <path d="M12 2C12 2 10 7 10 10C10 11.66 11.34 13 13 13C14.66 13 16 11.66 16 10C16 7 12 2 12 2Z" />
+                            <path d="M8.5 7.5C8.5 7.5 5 10 5 13C5 15.21 6.79 17 9 17C10.15 17 11.19 16.52 11.92 15.74C11.35 14.9 11 13.9 11 12.8C11 10.6 12.5 8.7 8.5 7.5Z" opacity="0.85" />
+                            <path d="M15.5 7.5C11.5 8.7 13 10.6 13 12.8C13 13.9 12.65 14.9 12.08 15.74C12.81 16.52 13.85 17 15 17C17.21 17 19 15.21 19 13C19 10 15.5 7.5 15.5 7.5Z" opacity="0.85" />
+                            <path d="M11 16C11 18 10 21 7 22C10 22 13 20 13 16H11Z" opacity="0.6" />
+                          </svg>
+                        )}
+                        {brandLogoPreset === 'modern-l' && (
+                          <span className="text-2xl font-black">L</span>
+                        )}
+                        {brandLogoPreset === 'minimal-circle' && (
+                          <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-current" />
+                          </div>
+                        )}
+                        {brandLogoPreset === 'geometric-prism' && (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                            <polygon points="12 2 2 22 22 22" />
+                            <line x1="12" y1="2" x2="12" y2="22" />
+                          </svg>
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                          {brandSiteName || 'Lume'}
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]" />
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {brandTagline || 'O espaço das boas ideias'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1 rounded-lg">
+                    {brandLogoUrl ? 'Logótipo Personalizado' : 'Ícone SVG'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Site Name and Tagline */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
+                    Nome da Plataforma
+                  </label>
+                  <input
+                    type="text"
+                    value={brandSiteName}
+                    onChange={(e) => setBrandSiteName(e.target.value)}
+                    className="w-full px-3.5 py-2 text-sm bg-white dark:bg-[#12101e] border border-slate-200 dark:border-purple-900/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
+                    Slogan / Subtítulo
+                  </label>
+                  <input
+                    type="text"
+                    value={brandTagline}
+                    onChange={(e) => setBrandTagline(e.target.value)}
+                    className="w-full px-3.5 py-2 text-sm bg-white dark:bg-[#12101e] border border-slate-200 dark:border-purple-900/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Logo Upload & URL Options */}
+              <div className="space-y-4">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                  Ficheiro de Imagem do Logótipo
+                </label>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 px-4 py-3 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-xs font-bold rounded-xl border border-purple-200 dark:border-purple-800 transition">
+                    <UploadCloud className="w-4 h-4 text-[#7C3AED]" />
+                    <span>Carregar Logótipo do Computador (PNG, SVG, WebP)</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (!file.type.startsWith('image/')) {
+                          alert('Ficheiro inválido. Selecione uma imagem.');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          const res = ev.target?.result as string;
+                          if (res) {
+                            setBrandLogoUrl(res);
+                            setSuccessMessage('Logótipo carregado!');
+                            setTimeout(() => setSuccessMessage(null), 2500);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+
+                  {isDriveConnected && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDrivePickerTarget('postMedia');
+                        setIsDrivePickerOpen(true);
+                      }}
+                      className="px-4 py-3 bg-white dark:bg-[#12101e] hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl border border-slate-200 dark:border-purple-900/50 transition flex items-center justify-center gap-2"
+                    >
+                      <HardDrive className="w-4 h-4 text-[#7C3AED]" />
+                      <span>Google Drive</span>
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                    Ou insira o URL direto do logótipo:
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={brandLogoUrl}
+                      onChange={(e) => setBrandLogoUrl(e.target.value)}
+                      placeholder="https://exemplo.com/logotipo.png"
+                      className="flex-1 px-3.5 py-2 text-sm bg-white dark:bg-[#12101e] border border-slate-200 dark:border-purple-900/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
+                    />
+                    {brandLogoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setBrandLogoUrl('')}
+                        className="px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Presets */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-2">
+                  Ou selecione um Estilo de Ícone Oficial:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandLogoPreset('lotus-sprout');
+                      setBrandLogoUrl('');
+                    }}
+                    className={`p-3 rounded-2xl border text-center flex flex-col items-center gap-2 transition ${
+                      brandLogoPreset === 'lotus-sprout' && !brandLogoUrl
+                        ? 'border-[#7C3AED] bg-purple-50 dark:bg-purple-950/60 ring-2 ring-purple-300'
+                        : 'border-slate-200 dark:border-purple-950/60 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-[#7C3AED]">
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                        <path d="M12 2C12 2 10 7 10 10C10 11.66 11.34 13 13 13C14.66 13 16 11.66 16 10C16 7 12 2 12 2Z" />
+                        <path d="M8.5 7.5C8.5 7.5 5 10 5 13C5 15.21 6.79 17 9 17C10.15 17 11.19 16.52 11.92 15.74C11.35 14.9 11 13.9 11 12.8C11 10.6 12.5 8.7 8.5 7.5Z" opacity="0.85" />
+                        <path d="M15.5 7.5C11.5 8.7 13 10.6 13 12.8C13 13.9 12.65 14.9 12.08 15.74C12.81 16.52 13.85 17 15 17C17.21 17 19 15.21 19 13C19 10 15.5 7.5 15.5 7.5Z" opacity="0.85" />
+                      </svg>
+                    </div>
+                    <span className="text-[11px] font-bold">Botânico</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandLogoPreset('modern-l');
+                      setBrandLogoUrl('');
+                    }}
+                    className={`p-3 rounded-2xl border text-center flex flex-col items-center gap-2 transition ${
+                      brandLogoPreset === 'modern-l' && !brandLogoUrl
+                        ? 'border-[#7C3AED] bg-purple-50 dark:bg-purple-950/60 ring-2 ring-purple-300'
+                        : 'border-slate-200 dark:border-purple-950/60 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-[#7C3AED] font-black text-xl">
+                      L
+                    </div>
+                    <span className="text-[11px] font-bold">Monograma L</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandLogoPreset('minimal-circle');
+                      setBrandLogoUrl('');
+                    }}
+                    className={`p-3 rounded-2xl border text-center flex flex-col items-center gap-2 transition ${
+                      brandLogoPreset === 'minimal-circle' && !brandLogoUrl
+                        ? 'border-[#7C3AED] bg-purple-50 dark:bg-purple-950/60 ring-2 ring-purple-300'
+                        : 'border-slate-200 dark:border-purple-950/60 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-[#7C3AED]">
+                      <div className="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold">Minimal</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandLogoPreset('geometric-prism');
+                      setBrandLogoUrl('');
+                    }}
+                    className={`p-3 rounded-2xl border text-center flex flex-col items-center gap-2 transition ${
+                      brandLogoPreset === 'geometric-prism' && !brandLogoUrl
+                        ? 'border-[#7C3AED] bg-purple-50 dark:bg-purple-950/60 ring-2 ring-purple-300'
+                        : 'border-slate-200 dark:border-purple-950/60 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-[#7C3AED]">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5">
+                        <polygon points="12 2 2 22 22 22" />
+                      </svg>
+                    </div>
+                    <span className="text-[11px] font-bold">Prisma</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="pt-4 border-t border-slate-100 dark:border-purple-950/40 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Repor o logótipo e a marca padrão?')) {
+                      resetBrandingToDefault();
+                      setBrandSiteName('Lume');
+                      setBrandTagline('O espaço das boas ideias');
+                      setBrandLogoUrl('');
+                      setBrandLogoPreset('lotus-sprout');
+                      setSuccessMessage('Identidade reposta para padrão!');
+                      setTimeout(() => setSuccessMessage(null), 2500);
+                    }
+                  }}
+                  className="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Repor Padrão</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateBranding({
+                      siteName: brandSiteName.trim() || 'Lume',
+                      tagline: brandTagline.trim() || 'O espaço das boas ideias',
+                      logoUrl: brandLogoUrl.trim(),
+                      logoPreset: brandLogoPreset,
+                    });
+                    setSuccessMessage('Logótipo e marca guardados com sucesso no Firebase!');
+                    setTimeout(() => setSuccessMessage(null), 3000);
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-r from-[#7C3AED] to-[#9333EA] hover:from-[#6D28D9] hover:to-[#7E22CE] text-white text-xs font-bold rounded-xl shadow-md transition active:scale-95 flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Guardar Identidade do Sistema</span>
+                </button>
               </div>
             </div>
           )}

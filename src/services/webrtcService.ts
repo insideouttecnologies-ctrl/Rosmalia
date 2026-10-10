@@ -167,8 +167,8 @@ export const listenIncomingCallsForUser = (
       // Must not be expired (generous 15s buffer for network latency)
       if (call.expiresAt && Date.now() > call.expiresAt + 15000) return false;
 
-      // Caller cannot ring oneself in the EXACT same tab
-      if (call.callerTabId && currentTabId && call.callerTabId === currentTabId) {
+      // Caller cannot ring oneself in the EXACT same tab (unless it is an explicit simulation test)
+      if (!call.isSimulation && call.callerTabId && currentTabId && call.callerTabId === currentTabId) {
         return false;
       }
 
@@ -194,10 +194,10 @@ export const listenIncomingCallsForUser = (
         (uid.startsWith('guest') || uid === 'user-visitor-simulated' || uEmail.startsWith('guest')) &&
         (calleeId.startsWith('guest') || calleeId === 'user-visitor-simulated' || calleeId === 'guest-user');
 
-      const matchesCallee = isDirectMatch || isAdminMatch || isGuestMatch;
+      const matchesCallee = call.isSimulation || isDirectMatch || isAdminMatch || isGuestMatch;
 
-      // Caller cannot call oneself unless in different tabs for testing
-      const isNotSelf = call.callerTabId ? call.callerTabId !== currentTabId : (call.callerId !== userId && call.callerId !== userEmail);
+      // Caller cannot call oneself unless in different tabs for testing or simulation
+      const isNotSelf = call.isSimulation || (call.callerTabId ? call.callerTabId !== currentTabId : (call.callerId !== userId && call.callerId !== userEmail));
 
       return matchesCallee && isNotSelf;
     });

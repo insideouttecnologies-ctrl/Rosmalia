@@ -17,10 +17,13 @@ import {
   HardDrive,
   Video,
   FileText,
-  Camera
+  Camera,
+  Sliders,
+  Paintbrush
 } from 'lucide-react';
 import { ViewMode } from '../types';
 import { ProfilePhotoModal } from './ProfilePhotoModal';
+import { SystemLogoModal } from './SystemLogoModal';
 
 interface HeaderProps {
   onOpenAdmin: () => void;
@@ -51,12 +54,14 @@ export const Header: React.FC<HeaderProps> = ({
     updateProfile,
     isDriveConnected,
     googleUser,
+    branding,
   } = useBlog();
 
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [isProfilePhotoModalOpen, setIsProfilePhotoModalOpen] = useState(false);
+  const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
 
   const handleNavClick = (view: ViewMode) => {
     setActiveView(view);
@@ -74,36 +79,78 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           
-          {/* Brand Identity: Lume */}
-          <button
-            onClick={() => handleNavClick('home')}
-            className="flex items-center gap-3 group text-left focus:outline-none"
-          >
-            {/* Elegant Floral/Botanical Sprout Icon */}
-            <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-[#7C3AED] dark:text-purple-300 shadow-sm group-hover:scale-105 transition-transform">
-              <svg
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="w-6 h-6 text-[#7C3AED] dark:text-[#A78BFA]"
-              >
-                <path d="M12 2C12 2 10 7 10 10C10 11.66 11.34 13 13 13C14.66 13 16 11.66 16 10C16 7 12 2 12 2Z" />
-                <path d="M8.5 7.5C8.5 7.5 5 10 5 13C5 15.21 6.79 17 9 17C10.15 17 11.19 16.52 11.92 15.74C11.35 14.9 11 13.9 11 12.8C11 10.6 12.5 8.7 8.5 7.5Z" opacity="0.85" />
-                <path d="M15.5 7.5C11.5 8.7 13 10.6 13 12.8C13 13.9 12.65 14.9 12.08 15.74C12.81 16.52 13.85 17 15 17C17.21 17 19 15.21 19 13C19 10 15.5 7.5 15.5 7.5Z" opacity="0.85" />
-                <path d="M11 16C11 18 10 21 7 22C10 22 13 20 13 16H11Z" opacity="0.6" />
-              </svg>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-sans">
-                  Lume
-                </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]" />
+          {/* Brand Identity: Dynamic System Logo & Title */}
+          <div className="flex items-center gap-1.5 group">
+            <button
+              onClick={() => handleNavClick('home')}
+              className="flex items-center gap-3 text-left focus:outline-none"
+            >
+              {/* Logo: Image if set, else SVG preset */}
+              {branding?.logoUrl ? (
+                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 p-1 flex items-center justify-center border border-purple-200/60 dark:border-purple-800 shadow-sm group-hover:scale-105 transition-transform">
+                  <img
+                    src={branding.logoUrl}
+                    alt={branding.siteName || 'Lume'}
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-[#7C3AED] dark:text-purple-300 shadow-sm group-hover:scale-105 transition-transform">
+                  {(!branding?.logoPreset || branding.logoPreset === 'lotus-sprout') && (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-6 h-6 text-[#7C3AED] dark:text-[#A78BFA]"
+                    >
+                      <path d="M12 2C12 2 10 7 10 10C10 11.66 11.34 13 13 13C14.66 13 16 11.66 16 10C16 7 12 2 12 2Z" />
+                      <path d="M8.5 7.5C8.5 7.5 5 10 5 13C5 15.21 6.79 17 9 17C10.15 17 11.19 16.52 11.92 15.74C11.35 14.9 11 13.9 11 12.8C11 10.6 12.5 8.7 8.5 7.5Z" opacity="0.85" />
+                      <path d="M15.5 7.5C11.5 8.7 13 10.6 13 12.8C13 13.9 12.65 14.9 12.08 15.74C12.81 16.52 13.85 17 15 17C17.21 17 19 15.21 19 13C19 10 15.5 7.5 15.5 7.5Z" opacity="0.85" />
+                      <path d="M11 16C11 18 10 21 7 22C10 22 13 20 13 16H11Z" opacity="0.6" />
+                    </svg>
+                  )}
+                  {branding?.logoPreset === 'modern-l' && (
+                    <span className="text-2xl font-black tracking-tighter text-[#7C3AED] dark:text-purple-300">
+                      L
+                    </span>
+                  )}
+                  {branding?.logoPreset === 'minimal-circle' && (
+                    <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-current" />
+                    </div>
+                  )}
+                  {branding?.logoPreset === 'geometric-prism' && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                      <polygon points="12 2 2 22 22 22" />
+                      <line x1="12" y1="2" x2="12" y2="22" />
+                    </svg>
+                  )}
+                </div>
+              )}
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-sans">
+                    {branding?.siteName || 'Lume'}
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]" />
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
+                  {branding?.tagline || 'O espaço das boas ideias'}
+                </p>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
-                O espaço das boas ideias
-              </p>
-            </div>
-          </button>
+            </button>
+
+            {/* Quick Admin Branding Edit Button */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsLogoModalOpen(true)}
+                title="Personalizar Logótipo & Marca do Sistema"
+                className="p-1 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-950/60 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center space-x-1 lg:space-x-6 text-sm font-medium">
@@ -311,6 +358,19 @@ export const Header: React.FC<HeaderProps> = ({
                       <Camera className="w-3.5 h-3.5 text-[#7C3AED]" />
                       <span>Alterar Foto de Perfil</span>
                     </button>
+
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setIsLogoModalOpen(true);
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-950/50 flex items-center gap-2 transition"
+                      >
+                        <Sliders className="w-3.5 h-3.5 text-[#7C3AED]" />
+                        <span>Logótipo & Marca do Sistema</span>
+                      </button>
+                    )}
 
                     {isAdmin && onOpenDrive && (
                       <button
@@ -572,6 +632,13 @@ export const Header: React.FC<HeaderProps> = ({
           }}
         />
       )}
+
+      {/* System Logo & Branding Customization Modal */}
+      <SystemLogoModal
+        isOpen={isLogoModalOpen}
+        onClose={() => setIsLogoModalOpen(false)}
+        onOpenDrive={onOpenDrive}
+      />
     </header>
   );
 };

@@ -11,6 +11,7 @@ import {
   DigitalCurriculum,
   CurriculumItem,
   CurriculumProfile,
+  SystemBranding,
 } from '../types';
 import { initialCategories } from '../data/mockData';
 import { defaultCurriculumData } from '../data/defaultCurriculum';
@@ -49,6 +50,8 @@ import {
   signOutFromFirebase,
   saveCurriculumToFirebase,
   listenCurriculumInFirebase,
+  saveSystemBrandingToFirebase,
+  listenSystemBrandingInFirebase,
 } from '../services/firebase';
 import { User as FirebaseUser } from 'firebase/auth';
 
@@ -91,6 +94,10 @@ interface BlogContextType {
   }) => { success: boolean; message?: string };
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
+  // System Branding & Logo customization
+  branding: SystemBranding;
+  updateBranding: (updates: Partial<SystemBranding>) => void;
+  resetBrandingToDefault: () => void;
   // Banner items customization (up to 3 items)
   bannerItems: BannerItem[];
   updateBannerItems: (items: BannerItem[]) => void;
@@ -169,6 +176,15 @@ const STORAGE_KEYS = {
   READ_HISTORY: 'lume_blog_read_history_v4',
   BANNER_ITEMS: 'lume_blog_banner_items_v4',
   CURRICULUM: 'lume_blog_curriculum_v4',
+  BRANDING: 'lume_blog_branding_v4',
+};
+
+export const defaultBranding: SystemBranding = {
+  siteName: 'Lume',
+  tagline: 'O espaço das boas ideias',
+  logoUrl: '',
+  logoPreset: 'lotus-sprout',
+  accentColor: '#7C3AED',
 };
 
 export const initialDefaultBannerItems: BannerItem[] = [
@@ -343,6 +359,20 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return defaultCurriculumData;
   });
 
+  // System Branding & Logo state
+  const [branding, setBranding] = useState<SystemBranding>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.BRANDING);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.siteName) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return defaultBranding;
+  });
+
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.DARK_MODE);
@@ -406,6 +436,10 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CURRICULUM, JSON.stringify(curriculum));
   }, [curriculum]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.BRANDING, JSON.stringify(branding));
+  }, [branding]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.DARK_MODE, JSON.stringify(darkMode));
@@ -496,6 +530,13 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    // 9. Real-time listener for System Branding & Logo
+    const unsubBranding = listenSystemBrandingInFirebase((remoteBranding) => {
+      if (remoteBranding && remoteBranding.siteName) {
+        setBranding(remoteBranding);
+      }
+    });
+
     return () => {
       isMounted = false;
       if (typeof unsubPosts === 'function') unsubPosts();
@@ -504,6 +545,7 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (typeof unsubUsers === 'function') unsubUsers();
       if (typeof unsubCats === 'function') unsubCats();
       if (typeof unsubCurriculum === 'function') unsubCurriculum();
+      if (typeof unsubBranding === 'function') unsubBranding();
     };
   }, []);
 
@@ -518,6 +560,24 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setBannerItems(initialDefaultBannerItems);
     localStorage.setItem(STORAGE_KEYS.BANNER_ITEMS, JSON.stringify(initialDefaultBannerItems));
     persistBannerItemsToFirebase(initialDefaultBannerItems);
+  };
+
+  const updateBranding = (updates: Partial<SystemBranding>) => {
+    setBranding((prev) => {
+      const next: SystemBranding = {
+        ...prev,
+        ...updates,
+      };
+      localStorage.setItem(STORAGE_KEYS.BRANDING, JSON.stringify(next));
+      saveSystemBrandingToFirebase(next).catch(console.error);
+      return next;
+    });
+  };
+
+  const resetBrandingToDefault = () => {
+    setBranding(defaultBranding);
+    localStorage.setItem(STORAGE_KEYS.BRANDING, JSON.stringify(defaultBranding));
+    saveSystemBrandingToFirebase(defaultBranding).catch(console.error);
   };
 
   // Digital Curriculum / Portfolio Actions
@@ -1150,6 +1210,9 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
         bannerItems,
         updateBannerItems,
         resetBannerToDefault,
+        branding,
+        updateBranding,
+        resetBrandingToDefault,
         bookmarkedIds,
         toggleBookmark,
         likedPostIds,
